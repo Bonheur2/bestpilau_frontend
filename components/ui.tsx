@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '@/lib/auth';
 import { STATUS_LABELS } from '@/lib/constants';
-import type { Module, OrderStatus } from '@/lib/types';
+import type { OrderStatus, Permission } from '@/lib/types';
 import { Icon } from './Icon';
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
@@ -70,13 +70,13 @@ export function StatusBadge({ status, overdue }: { status: OrderStatus; overdue?
   return <span className={`badge badge-${status.toLowerCase()}`}>{STATUS_LABELS[status]}</span>;
 }
 
-// Renders children only when the user's role has one of `modules`.
-export function Guard({ modules, children }: { modules: Module[]; children: ReactNode }) {
+// Renders children only when the user's role has one of `permissions`.
+export function Guard({ permissions, children }: { permissions: Permission[]; children: ReactNode }) {
   const { can } = useAuth();
-  if (!modules.some(can)) {
+  if (!permissions.some(can)) {
     return (
       <Empty title="No access">
-        Your role does not have access to this page. Ask an admin to enable it under Settings → Permissions.
+        Your role does not have access to this page. Ask an admin to add it to your role under Settings → Roles.
       </Empty>
     );
   }

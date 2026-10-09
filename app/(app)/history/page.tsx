@@ -45,7 +45,7 @@ function rangeBounds(key: RangeKey) {
 
 export default function HistoryPage() {
   return (
-    <Guard modules={['orders', 'kitchen', 'delivery']}>
+    <Guard permissions={['orders.view', 'kitchen.view', 'deliveries.view', 'deliveries.deliver']}>
       <Suspense fallback={<Loader />}>
         <History />
       </Suspense>

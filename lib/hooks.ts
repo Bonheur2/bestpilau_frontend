@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, errorMessage } from './api';
 import { useLiveStatus, useLiveTopics, type LiveTopic } from './realtime';
+import type { AppSettings } from './types';
 
 interface ApiState<T> {
   data: T | null;
@@ -121,3 +122,11 @@ export function useQueryState<T extends string>(
 
 /** Accepts "all" or a positive whole number, e.g. a station or category id in the address. */
 export const isAllOrId = (value: string) => value === 'all' || /^[1-9]\d*$/.test(value);
+
+const DEFAULT_SETTINGS: AppSettings = { confirmWindowMinutes: 5 };
+
+/** Business settings (Settings → Business); updates live when an admin changes them. */
+export function useAppSettings() {
+  const { data, reload } = useApi<{ settings: AppSettings }>('/settings', { live: ['settings'] });
+  return { settings: data?.settings ?? DEFAULT_SETTINGS, loaded: Boolean(data), reload };
+}

@@ -15,7 +15,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 export default function MenuPage() {
   return (
-    <Guard modules={['menu']}>
+    <Guard permissions={['menu.view']}>
       <Suspense fallback={<Loader />}>
         <Menu />
       </Suspense>

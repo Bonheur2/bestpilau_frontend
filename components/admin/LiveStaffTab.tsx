@@ -2,14 +2,16 @@
 
 import { useApi, useNow } from '@/lib/hooks';
 import { useLiveStatus } from '@/lib/realtime';
-import { ROLE_LABELS } from '@/lib/constants';
+import { isDriverStaff, isKitchenStaff } from '@/lib/auth';
 import { timeAgo } from '@/lib/format';
-import type { PresenceUser, Role, SoundState, StaffUser, Station } from '@/lib/types';
+import type { PresenceUser, RolesResponse, SoundState, StaffUser, Station } from '@/lib/types';
 import { Alert, Loader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 
-// Roles whose screens play alerts; for anyone else sound doesn't matter.
-const ALERT_ROLES: Role[] = ['KITCHEN', 'CUSTOMER_CARE', 'DRIVER'];
+type Access = { isSuperAdmin: boolean; permissions: PresenceUser['permissions'] };
+// Whose screens play alerts (kitchen tickets, overdue orders, deliveries); for anyone else sound doesn't matter
+const takesOrders = (a: Access) => !a.isSuperAdmin && a.permissions.includes('orders.view');
+const getsAlerts = (a: Access) => isKitchenStaff(a) || takesOrders(a) || isDriverStaff(a);
 
 const SOUND_LABEL: Record<SoundState, string> = {
   on: 'Sound on',
@@ -34,12 +36,12 @@ type Coverage = { name: string; online: number; hearing: number; idle: boolean }
 
 // Is anyone who would receive this station's tickets online with sound on?
 function stationCoverage(stations: Station[], online: PresenceUser[]): Coverage[] {
-  const kitchen = online.filter((u) => u.role === 'KITCHEN' || u.role === 'ADMIN');
+  const kitchen = online.filter((u) => isKitchenStaff(u));
   return stations
     .filter((s) => s.isActive)
     .map((s) => {
       // Cooks at this station, plus head chefs (kitchen users with no station) who see every station
-      const covering = kitchen.filter((u) => u.stationId === s.id || (u.role === 'KITCHEN' && !u.stationId));
+      const covering = kitchen.filter((u) => u.stationId === s.id || !u.stationId);
       const idle = s.productCount + s.categoryCount === 0 && s.openTickets === 0;
       return { name: s.name, online: covering.length, hearing: covering.filter(hearsAlerts).length, idle };
     });
@@ -49,22 +51,27 @@ export function LiveStaffTab() {
   const live = useLiveStatus();
   const presence = useApi<{ users: PresenceUser[] }>('/presence', { interval: 30_000, live: ['presence'] });
   const staff = useApi<{ users: StaffUser[] }>('/users');
+  const roles = useApi<RolesResponse>('/roles');
   const stations = useApi<{ stations: Station[] }>('/stations');
   const now = useNow(30_000);
 
-  const error = presence.error ?? staff.error ?? stations.error;
+  const error = presence.error ?? staff.error ?? stations.error ?? roles.error;
   if (error) return <Alert>{error.message}</Alert>;
-  if (!presence.data || !staff.data || !stations.data) return <Loader />;
+  if (!presence.data || !staff.data || !stations.data || !roles.data) return <Loader />;
+  const roleById = new Map(roles.data.roles.map((r) => [r.id, r]));
 
   const online = presence.data.users;
   const onlineById = new Map(online.map((u) => [u.id, u]));
   const coverage = stationCoverage(stations.data.stations, online);
-  const careOnline = online.filter((u) => u.role === 'CUSTOMER_CARE');
-  const driversOnline = online.filter((u) => u.role === 'DRIVER');
+  const careOnline = online.filter((u) => takesOrders(u));
+  const driversOnline = online.filter((u) => isDriverStaff(u));
 
   // Every active staff member who should hear alerts; online first, then by name
   const rows = staff.data.users
-    .filter((u) => u.isActive && ALERT_ROLES.includes(u.role))
+    .filter((u) => {
+      const role = roleById.get(u.role.id);
+      return u.isActive && role && getsAlerts(role);
+    })
     .sort((a, b) => Number(onlineById.has(b.id)) - Number(onlineById.has(a.id)) || a.name.localeCompare(b.name));
 
   const problems = [
@@ -76,7 +83,7 @@ export function LiveStaffTab() {
           : `${c.name}: open but no device has sound on, so new tickets are silent.`,
       ),
     ...(careOnline.length > 0 && !careOnline.some(hearsAlerts)
-      ? ['Customer Care: online but sound is off, so overdue orders are silent.']
+      ? ['Order desk: online but sound is off, so overdue orders are silent.']
       : []),
   ];
 
@@ -108,7 +115,7 @@ export function LiveStaffTab() {
             </div>
           ))}
           <div className={`coverage ${careOnline.some(hearsAlerts) ? 'coverage-ok' : careOnline.length ? 'coverage-bad' : ''}`}>
-            <span className="coverage-name">Customer Care</span>
+            <span className="coverage-name">Order desk</span>
             <span className="coverage-state">
               {careOnline.length ? `${careOnline.length} online` : 'Nobody online'}
             </span>
@@ -131,7 +138,7 @@ export function LiveStaffTab() {
         <header className="panel-head">
           <h2>Staff</h2>
           <span className="muted small">
-            {online.filter((u) => ALERT_ROLES.includes(u.role)).length} of {rows.length} online
+            {rows.filter((u) => onlineById.has(u.id)).length} of {rows.length} online
           </span>
         </header>
         <div className="table-wrap">
@@ -148,7 +155,8 @@ export function LiveStaffTab() {
             <tbody>
               {rows.map((u) => {
                 const p = onlineById.get(u.id);
-                const role = `${ROLE_LABELS[u.role]}${u.role === 'KITCHEN' ? ` · ${u.station?.name ?? 'All stations'}` : ''}`;
+                const userRole = roleById.get(u.role.id);
+                const role = userRole && isKitchenStaff(userRole) ? `${u.role.name} · ${u.station?.name ?? 'All stations'}` : u.role.name;
                 if (!p) {
                   return (
                     <tr key={u.id} className="inactive-row">

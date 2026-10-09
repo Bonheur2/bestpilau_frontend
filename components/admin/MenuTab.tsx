@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import { api, apiFieldErrors } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { isAllOrId, useAction, useApi, useQueryState } from '@/lib/hooks';
 import { formatMoney } from '@/lib/format';
 import { productFormSchema, zodFieldErrors } from '@/lib/schemas';
@@ -20,6 +21,10 @@ export function MenuTab() {
   const products = useApi<{ products: Product[] }>('/menu/products');
   const stations = useApi<{ stations: Station[] }>('/stations');
   const { busy, error: actionError, setError, run } = useAction();
+  const { can } = useAuth();
+  const canCreate = can('menu.create');
+  const canEdit = can('menu.update');
+  const canDelete = can('menu.delete');
 
   const [categoryParam, setCategoryParam] = useQueryState<string>('category', isAllOrId, 'all');
   const selected: Selection = categoryParam === 'all' ? 'all' : Number(categoryParam);
@@ -74,9 +79,11 @@ export function MenuTab() {
         <aside className="card menu-categories">
           <header className="menu-categories-head">
             <h2>Categories</h2>
-            <button className="btn btn-ghost btn-sm" onClick={() => setCategoryDialog('new')}>
-              <Icon name="plus" size={15} /> New
-            </button>
+            {canCreate && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setCategoryDialog('new')}>
+                <Icon name="plus" size={15} /> New
+              </button>
+            )}
           </header>
           <nav className="menu-category-list" aria-label="Categories">
             <button
@@ -116,14 +123,16 @@ export function MenuTab() {
               </p>
             </div>
             <div className="menu-items-actions">
-              {category && (
+              {category && (canEdit || canDelete) && (
                 <button className="btn btn-ghost" onClick={() => setCategoryDialog(category)}>
                   <Icon name="pencil" size={15} /> Edit category
                 </button>
               )}
-              <button className="btn btn-primary" onClick={() => setItemDialog('new')} disabled={!categoryList.length}>
-                <Icon name="plus" size={16} /> Add item
-              </button>
+              {canCreate && (
+                <button className="btn btn-primary" onClick={() => setItemDialog('new')} disabled={!categoryList.length}>
+                  <Icon name="plus" size={16} /> Add item
+                </button>
+              )}
             </div>
           </header>
 
@@ -141,7 +150,7 @@ export function MenuTab() {
           {visible.length === 0 ? (
             <div className="menu-empty">
               <strong>{query ? 'No items match your search' : 'No items in this category yet'}</strong>
-              {!query && (
+              {!query && canCreate && (
                 <button className="btn btn-dark btn-sm" onClick={() => setItemDialog('new')} disabled={!categoryList.length}>
                   <Icon name="plus" size={15} /> Add an item
                 </button>
@@ -179,7 +188,7 @@ export function MenuTab() {
                         <span className="menu-availability">
                           <Switch
                             checked={p.isAvailable}
-                            disabled={busy === `product:${p.id}`}
+                            disabled={!canEdit || busy === `product:${p.id}`}
                             label={`${p.name} available`}
                             onChange={(on) => toggleAvailable(p, on)}
                           />
@@ -188,17 +197,21 @@ export function MenuTab() {
                       </td>
                       <td>
                         <div className="row-actions">
-                          <button className="icon-btn" onClick={() => setItemDialog(p)} aria-label={`Edit ${p.name}`} title="Edit">
-                            <Icon name="pencil" size={15} />
-                          </button>
-                          <button
-                            className="icon-btn icon-btn-danger"
-                            onClick={() => setDeleting(p)}
-                            aria-label={`Delete ${p.name}`}
-                            title="Delete"
-                          >
-                            <Icon name="trash" size={15} />
-                          </button>
+                          {canEdit && (
+                            <button className="icon-btn" onClick={() => setItemDialog(p)} aria-label={`Edit ${p.name}`} title="Edit">
+                              <Icon name="pencil" size={15} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className="icon-btn icon-btn-danger"
+                              onClick={() => setDeleting(p)}
+                              aria-label={`Delete ${p.name}`}
+                              title="Delete"
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -408,6 +421,7 @@ interface CategoryDialogProps {
 }
 
 function CategoryDialog({ category, stations, defaultStationName, onClose, onSaved, onDeleted }: CategoryDialogProps) {
+  const canDelete = useAuth().can('menu.delete');
   const [name, setName] = useState(category?.name ?? '');
   const [stationId, setStationId] = useState(category?.stationId ? String(category.stationId) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -483,7 +497,7 @@ function CategoryDialog({ category, stations, defaultStationName, onClose, onSav
           </select>
         </Field>
 
-        {category && (
+        {category && canDelete && (
           <div className="danger-zone">
             {confirmDelete ? (
               <>

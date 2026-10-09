@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSessionUser } from '@/lib/auth';
-import { ROLE_LABELS } from '@/lib/constants';
+import { roleLabel, useSessionUser } from '@/lib/auth';
 import { initials } from '@/lib/format';
 import { Icon } from './Icon';
 
@@ -29,7 +28,7 @@ export function UserMenu() {
     };
   }, [open]);
 
-  const role = `${ROLE_LABELS[user.role]}${user.stationName ? ` · ${user.stationName}` : ''}`;
+  const role = roleLabel(user);
 
   return (
     <div className="user-menu" ref={rootRef}>

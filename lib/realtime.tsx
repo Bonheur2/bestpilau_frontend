@@ -8,7 +8,7 @@ import { audioLocked, onSoundChange, soundEnabled } from './sound';
 // Live updates from the API over WebSocket. Messages are only "something changed"
 // signals; screens reload the affected data through the REST API.
 
-export type LiveTopic = 'tickets' | 'orders' | 'presence';
+export type LiveTopic = 'tickets' | 'orders' | 'presence' | 'settings';
 export type LiveMessage =
   | { type: LiveTopic; reason: string; orderId: number; stationIds?: number[] }
   // Sent locally after every (re)connect, so screens catch up on anything missed while offline
@@ -71,7 +71,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           reportSound();
           setStatus('live');
           emit({ type: 'resync' });
-        } else if (message.type === 'tickets' || message.type === 'orders' || message.type === 'presence') {
+        } else if (['tickets', 'orders', 'presence', 'settings'].includes(message.type ?? '')) {
           emit(message as LiveMessage);
         }
       };

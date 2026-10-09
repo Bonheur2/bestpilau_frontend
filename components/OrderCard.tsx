@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { useNow } from '@/lib/hooks';
 import { formatDuration, formatMoney, formatTime, timeAgo } from '@/lib/format';
 import { TICKET_STATUS_LABELS } from '@/lib/constants';
@@ -116,7 +116,7 @@ export function OrderCard({ order, children, showTimeline = false }: OrderCardPr
         </ol>
       )}
 
-      {children && <div className="order-actions">{children}</div>}
+      {Children.toArray(children).length > 0 && <div className="order-actions">{children}</div>}
     </article>
   );
 }

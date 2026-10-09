@@ -16,7 +16,7 @@ const EMPTY_CUSTOMER: CustomerForm = { customerName: '', customerPhone: '', loca
 
 export default function NewOrderPage() {
   return (
-    <Guard modules={['orders']}>
+    <Guard permissions={['orders.create']}>
       <NewOrder />
     </Guard>
   );

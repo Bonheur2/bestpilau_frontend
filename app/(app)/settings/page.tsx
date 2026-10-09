@@ -3,23 +3,25 @@
 import { Suspense } from 'react';
 import { useQueryState } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
-import type { Module } from '@/lib/types';
+import type { Permission } from '@/lib/types';
 import { Guard, Loader, PageHeader } from '@/components/ui';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { LiveStaffTab } from '@/components/admin/LiveStaffTab';
-import { PermissionsTab } from '@/components/admin/PermissionsTab';
+import { RolesTab } from '@/components/admin/RolesTab';
+import { BusinessTab } from '@/components/admin/BusinessTab';
 
-type TabKey = 'users' | 'live' | 'permissions';
+type TabKey = 'users' | 'live' | 'roles' | 'business';
 
-const TABS: { key: TabKey; module: Module; label: string }[] = [
-  { key: 'users', module: 'users', label: 'Users & roles' },
-  { key: 'live', module: 'users', label: 'Live staff' },
-  { key: 'permissions', module: 'permissions', label: 'Permissions' },
+const TABS: { key: TabKey; permission: Permission; label: string }[] = [
+  { key: 'users', permission: 'users.view', label: 'Staff' },
+  { key: 'live', permission: 'users.view', label: 'Live staff' },
+  { key: 'roles', permission: 'roles.view', label: 'Roles & permissions' },
+  { key: 'business', permission: 'settings.manage', label: 'Business' },
 ];
 
 export default function SettingsPage() {
   return (
-    <Guard modules={['users', 'permissions']}>
+    <Guard permissions={['users.view', 'roles.view', 'settings.manage']}>
       <Suspense fallback={<Loader />}>
         <Settings />
       </Suspense>
@@ -29,12 +31,12 @@ export default function SettingsPage() {
 
 function Settings() {
   const { can } = useAuth();
-  const tabs = TABS.filter((t) => can(t.module));
+  const tabs = TABS.filter((t) => can(t.permission));
   const [active, setActive] = useQueryState<TabKey>('tab', tabs.map((t) => t.key), tabs[0].key);
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Staff accounts, who is online, and what each role can access" />
+      <PageHeader title="Settings" subtitle="Staff, roles and how the business runs" />
       <div className="tabs" role="tablist">
         {tabs.map((t) => (
           <button
@@ -50,7 +52,8 @@ function Settings() {
       </div>
       {active === 'users' && <UsersTab />}
       {active === 'live' && <LiveStaffTab />}
-      {active === 'permissions' && <PermissionsTab />}
+      {active === 'roles' && <RolesTab />}
+      {active === 'business' && <BusinessTab />}
     </>
   );
 }

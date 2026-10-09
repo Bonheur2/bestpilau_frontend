@@ -65,9 +65,9 @@ export function LiveAlerts() {
   const { user, can } = useSessionUser();
   return (
     <>
-      {can('kitchen') && <KitchenAlerts />}
-      {can('orders') && <CareAlerts />}
-      {can('delivery') && user.driverId && <DriverAlerts />}
+      {can('kitchen.view') && <KitchenAlerts />}
+      {can('orders.view') && <CareAlerts />}
+      {user.driverId && <DriverAlerts />}
     </>
   );
 }
@@ -80,7 +80,7 @@ export function LiveControls() {
   const status = useLiveStatus();
   const enabled = useSyncExternalStore(subscribeSound, soundEnabled, () => true);
   const locked = useSyncExternalStore(subscribeSound, audioLocked, () => true);
-  const hasAlerts = can('kitchen') || can('orders') || can('delivery');
+  const hasAlerts = can('kitchen.view') || can('orders.view') || can('deliveries.deliver');
 
   const label = status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Reconnecting…';
 

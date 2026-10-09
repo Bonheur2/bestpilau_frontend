@@ -25,7 +25,7 @@ export const userFormSchema = z.object({
   name: z.string().trim().min(2, 'Name is required'),
   email: z.string().trim().email('Enter a valid email'),
   password: z.string().min(8, 'At least 8 characters'),
-  role: z.enum(['ADMIN', 'CUSTOMER_CARE', 'KITCHEN', 'DRIVER']),
+  roleId: z.string().min(1, 'Choose a role'),
   phone: z.string().trim().regex(phonePattern, 'Enter a valid phone number'),
 });
 

@@ -48,7 +48,7 @@ function Panel({ title, action, children }: { title: string; action?: ReactNode;
 
 export function DeliveriesOverview() {
   const { can } = useSessionUser();
-  const canAssign = can('orders');
+  const canAssign = can('orders.manage');
   const now = useNow(30_000);
   const query = useMemo(todayQuery, []);
 

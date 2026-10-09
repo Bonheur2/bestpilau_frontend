@@ -6,21 +6,27 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Logo } from '@/components/Logo';
 import { Icon, type IconName } from '@/components/Icon';
-import type { Module } from '@/lib/types';
+import type { Permission } from '@/lib/types';
 import { Alert, FullScreenLoader } from '@/components/ui';
 import { UserMenu } from '@/components/UserMenu';
 import { LiveAlerts, LiveControls } from '@/components/LiveAlerts';
 import { RealtimeProvider } from '@/lib/realtime';
 
-const NAV: { href: string; label: string; icon: IconName; modules?: Module[] }[] = [
+// Each entry shows when the user's role has any of its permissions
+const NAV: { href: string; label: string; icon: IconName; permissions?: Permission[] }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: 'grid' },
-  { href: '/orders/new', label: 'New order', icon: 'plus', modules: ['orders'] },
-  { href: '/orders', label: 'Orders', icon: 'list', modules: ['orders'] },
-  { href: '/kitchen', label: 'Kitchen', icon: 'flame', modules: ['kitchen'] },
-  { href: '/driver', label: 'Deliveries', icon: 'truck', modules: ['delivery'] },
-  { href: '/history', label: 'History', icon: 'clock', modules: ['orders', 'kitchen', 'delivery'] },
-  { href: '/menu', label: 'Menu', icon: 'book', modules: ['menu'] },
-  { href: '/settings', label: 'Settings', icon: 'settings', modules: ['users', 'permissions'] },
+  { href: '/orders/new', label: 'New order', icon: 'plus', permissions: ['orders.create'] },
+  { href: '/orders', label: 'Orders', icon: 'list', permissions: ['orders.view'] },
+  { href: '/kitchen', label: 'Kitchen', icon: 'flame', permissions: ['kitchen.view'] },
+  { href: '/driver', label: 'Deliveries', icon: 'truck', permissions: ['deliveries.view', 'deliveries.deliver'] },
+  {
+    href: '/history',
+    label: 'History',
+    icon: 'clock',
+    permissions: ['orders.view', 'kitchen.view', 'deliveries.view', 'deliveries.deliver'],
+  },
+  { href: '/menu', label: 'Menu', icon: 'book', permissions: ['menu.view'] },
+  { href: '/settings', label: 'Settings', icon: 'settings', permissions: ['users.view', 'roles.view', 'settings.manage'] },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -66,7 +72,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
   if (!user) return <FullScreenLoader label="Signing out…" />;
 
-  const items = NAV.filter((item) => !item.modules || item.modules.some((m) => user.modules.includes(m)));
+  const items = NAV.filter((item) => !item.permissions || item.permissions.some((p) => user.permissions.includes(p)));
 
   return (
     <RealtimeProvider>

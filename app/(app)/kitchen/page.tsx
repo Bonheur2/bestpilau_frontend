@@ -3,8 +3,7 @@
 import { Suspense, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useSessionUser } from '@/lib/auth';
-import { isAllOrId, useAction, useApi, useQueryState } from '@/lib/hooks';
-import { CONFIRM_MINUTES } from '@/lib/constants';
+import { isAllOrId, useAction, useApi, useAppSettings, useQueryState } from '@/lib/hooks';
 import type { Station, Ticket } from '@/lib/types';
 import { Icon } from '@/components/Icon';
 import { TicketCard } from '@/components/TicketCard';
@@ -12,7 +11,7 @@ import { Alert, Empty, Guard, Loader, PageHeader } from '@/components/ui';
 
 export default function KitchenPage() {
   return (
-    <Guard modules={['kitchen']}>
+    <Guard permissions={['kitchen.view']}>
       <Suspense fallback={<Loader />}>
         <Kitchen />
       </Suspense>
@@ -21,7 +20,9 @@ export default function KitchenPage() {
 }
 
 function Kitchen() {
-  const { user } = useSessionUser();
+  const { user, can } = useSessionUser();
+  const canPrepare = can('kitchen.prepare');
+  const { confirmWindowMinutes } = useAppSettings().settings;
   // Cooks are fixed to their station; the head chef can switch between stations.
   const fixedStation = user.stationId;
   const [stationParam, setStationParam] = useQueryState<string>('station', isAllOrId, 'all');
@@ -62,7 +63,7 @@ function Kitchen() {
     <>
       <PageHeader
         title={fixedStation ? `Kitchen · ${user.stationName}` : 'Kitchen'}
-        subtitle={`Confirm new tickets within ${CONFIRM_MINUTES} minutes`}
+        subtitle={`Confirm new tickets within ${confirmWindowMinutes} minute${confirmWindowMinutes === 1 ? '' : 's'}`}
       />
 
       {!fixedStation && activeStations.length > 0 && (
@@ -92,7 +93,7 @@ function Kitchen() {
 
       {late > 0 && (
         <Alert kind="error">
-          {late} ticket{late > 1 ? 's' : ''} not confirmed within {CONFIRM_MINUTES} minutes.
+          {late} ticket{late > 1 ? 's' : ''} not confirmed within {confirmWindowMinutes} minute{confirmWindowMinutes === 1 ? '' : 's'}.
         </Alert>
       )}
       <Alert onClose={() => setError(null)}>{actionError}</Alert>
@@ -110,6 +111,7 @@ function Kitchen() {
             {pending.length === 0 && <Empty title="No new tickets" />}
             {pending.map((ticket) => (
               <TicketCard key={ticket.id} ticket={ticket} showStation={showStationOnCards}>
+                {canPrepare ? (
                 <button
                   className="btn btn-primary btn-block"
                   disabled={busy === `confirm:${ticket.id}`}
@@ -117,6 +119,9 @@ function Kitchen() {
                 >
                   <Icon name="check" /> Confirm
                 </button>
+                ) : (
+                  <span className="muted small">View only</span>
+                )}
               </TicketCard>
             ))}
           </section>
@@ -129,6 +134,7 @@ function Kitchen() {
             {cooking.length === 0 && <Empty title="Nothing cooking" />}
             {cooking.map((ticket) => (
               <TicketCard key={ticket.id} ticket={ticket} showStation={showStationOnCards}>
+                {canPrepare ? (
                 <button
                   className="btn btn-success btn-block"
                   disabled={busy === `ready:${ticket.id}`}
@@ -136,6 +142,9 @@ function Kitchen() {
                 >
                   <Icon name="check" /> Mark ready
                 </button>
+                ) : (
+                  <span className="muted small">View only</span>
+                )}
               </TicketCard>
             ))}
           </section>

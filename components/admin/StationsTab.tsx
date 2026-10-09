@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, apiFieldErrors, errorMessage } from '@/lib/api';
 import { useApi } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
 import type { Station } from '@/lib/types';
 import { Alert, Field, Loader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -14,6 +15,7 @@ export function StationsTab() {
   const { data, error, loading, reload } = useApi<{ stations: Station[] }>('/stations', { live: ['tickets'] });
   const [editing, setEditing] = useState<Station | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Station | null>(null);
+  const { can } = useAuth();
 
   if (loading) return <Loader />;
   if (error || !data) return <Alert>{error?.message ?? 'Could not load stations'}</Alert>;
@@ -32,9 +34,11 @@ export function StationsTab() {
               {defaultStation ? ` (${defaultStation.name})` : ''}.
             </p>
           </div>
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>
-            <Icon name="plus" size={16} /> New station
-          </button>
+          {can('menu.create') && (
+            <button className="btn btn-primary" onClick={() => setEditing('new')}>
+              <Icon name="plus" size={16} /> New station
+            </button>
+          )}
         </header>
 
         <div className="table-wrap">
@@ -65,9 +69,12 @@ export function StationsTab() {
                   <td>{s.openTickets > 0 ? <strong>{s.openTickets}</strong> : 0}</td>
                   <td>
                     <div className="row-actions">
-                      <button className="icon-btn" onClick={() => setEditing(s)} aria-label={`Edit ${s.name}`} title="Edit">
-                        <Icon name="pencil" size={15} />
-                      </button>
+                      {can('menu.update') && (
+                        <button className="icon-btn" onClick={() => setEditing(s)} aria-label={`Edit ${s.name}`} title="Edit">
+                          <Icon name="pencil" size={15} />
+                        </button>
+                      )}
+                      {can('menu.delete') && (
                       <button
                         className="icon-btn icon-btn-danger"
                         onClick={() => setDeleting(s)}
@@ -77,6 +84,7 @@ export function StationsTab() {
                       >
                         <Icon name="trash" size={15} />
                       </button>
+                      )}
                     </div>
                   </td>
                 </tr>

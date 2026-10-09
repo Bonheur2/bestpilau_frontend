@@ -1,26 +1,49 @@
 // Shapes returned by the Best Pilau API (backend/src/routes).
 
-export type Role = 'ADMIN' | 'CUSTOMER_CARE' | 'KITCHEN' | 'DRIVER';
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'DELIVERED';
 export type TicketStatus = 'PENDING' | 'CONFIRMED' | 'READY';
 export type DriverStatus = 'AVAILABLE' | 'BUSY' | 'OFFLINE';
-export type Module = 'orders' | 'kitchen' | 'delivery' | 'menu' | 'users' | 'permissions';
+// Every action is guarded by one of these (backend/src/constants.js PERMISSION_GROUPS)
+export type Permission =
+  | 'orders.view'
+  | 'orders.create'
+  | 'orders.manage'
+  | 'kitchen.view'
+  | 'kitchen.prepare'
+  | 'deliveries.view'
+  | 'deliveries.deliver'
+  | 'menu.view'
+  | 'menu.create'
+  | 'menu.update'
+  | 'menu.delete'
+  | 'users.view'
+  | 'users.create'
+  | 'users.update'
+  | 'roles.view'
+  | 'roles.manage'
+  | 'settings.manage';
 
 export interface SessionUser {
   id: number;
   name: string;
   email: string;
-  role: Role;
+  roleId: number;
+  roleName: string;
+  /** The Admin role: every permission, always */
+  isSuperAdmin: boolean;
+  permissions: Permission[];
+  /** Set when the role makes them a driver */
   driverId: number | null;
+  /** Set when the role makes them kitchen staff and they work at one station */
   stationId: number | null;
   stationName: string | null;
-  modules: Module[];
 }
 
 export interface Profile extends SessionUser {
   phone: string | null;
   createdAt: string;
   passwordChangedAt: string | null;
+  sessionsRevokedAt: string | null;
 }
 
 export interface StationRef {
@@ -160,17 +183,37 @@ export interface StaffUser {
   id: number;
   name: string;
   email: string;
-  role: Role;
+  role: { id: number; name: string; isSuperAdmin: boolean };
   isActive: boolean;
   createdAt: string;
   station: StationRef | null;
   driver: { id: number; phone: string | null; availabilityStatus: DriverStatus } | null;
 }
 
-export interface PermissionMatrix {
-  roles: Role[];
-  modules: { key: Module; label: string; description: string }[];
-  matrix: Record<Role, Module[]>;
+export interface RoleInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  isSuperAdmin: boolean;
+  userCount: number;
+  permissions: Permission[];
+}
+
+export interface PermissionGroup {
+  key: string;
+  label: string;
+  permissions: { key: Permission; label: string; description: string; implies?: Permission[] }[];
+}
+
+export interface RolesResponse {
+  roles: RoleInfo[];
+  groups: PermissionGroup[];
+}
+
+// ---- Business settings (GET /settings) ----
+export interface AppSettings {
+  /** Minutes the kitchen has to confirm a new order */
+  confirmWindowMinutes: number;
 }
 
 // ---- Presence (GET /presence) ----
@@ -179,7 +222,10 @@ export type SoundState = 'on' | 'muted' | 'locked';
 export interface PresenceUser {
   id: number;
   name: string;
-  role: Role;
+  roleId: number;
+  roleName: string;
+  isSuperAdmin: boolean;
+  permissions: Permission[];
   stationId: number | null;
   stationName: string | null;
   driverId: number | null;

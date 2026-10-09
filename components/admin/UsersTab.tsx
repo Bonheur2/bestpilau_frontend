@@ -1,196 +1,303 @@
 'use client';
 
-import { useState, type ChangeEvent, type FormEvent } from 'react';
-import { api, apiFieldErrors } from '@/lib/api';
-import { useSessionUser } from '@/lib/auth';
-import { useAction, useApi } from '@/lib/hooks';
-import { DRIVER_STATUS_LABELS, ROLE_LABELS, ROLES } from '@/lib/constants';
+import { useMemo, useState, type FormEvent } from 'react';
+import { api, apiFieldErrors, errorMessage } from '@/lib/api';
+import { isDriverStaff, isKitchenStaff, useSessionUser } from '@/lib/auth';
+import { useApi } from '@/lib/hooks';
+import { DRIVER_STATUS_LABELS } from '@/lib/constants';
 import { userFormSchema, zodFieldErrors } from '@/lib/schemas';
-import type { Role, StaffUser, Station } from '@/lib/types';
+import type { RoleInfo, RolesResponse, StaffUser, Station } from '@/lib/types';
 import { Alert, Field, Loader } from '@/components/ui';
-
-type UserForm = { name: string; email: string; password: string; role: Role; phone: string; stationId: string };
-const EMPTY: UserForm = { name: '', email: '', password: '', role: 'CUSTOMER_CARE', phone: '', stationId: '' };
+import { Icon } from '@/components/Icon';
+import { Modal, Switch } from '@/components/Modal';
 
 export function UsersTab() {
-  const { user: me } = useSessionUser();
+  const { user: me, can } = useSessionUser();
   const { data, error, loading, reload } = useApi<{ users: StaffUser[] }>('/users');
+  const roles = useApi<RolesResponse>('/roles');
   const stations = useApi<{ stations: Station[] }>('/stations');
-  const stationList = (stations.data?.stations ?? []).filter((s) => s.isActive);
-  const { busy, error: actionError, setError, run } = useAction();
-  const [form, setForm] = useState<UserForm>(EMPTY);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<StaffUser | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const setField = (key: keyof UserForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
+  const roleList = useMemo(() => roles.data?.roles ?? [], [roles.data]);
+  // Only an Admin can hand out the Admin role
+  const assignableRoles = roleList.filter((r) => !r.isSuperAdmin || me.isSuperAdmin);
+  const stationList = (stations.data?.stations ?? []).filter((s) => s.isActive);
+  const roleById = new Map(roleList.map((r) => [r.id, r]));
 
-  async function create(e: FormEvent) {
+  if (loading) return <Loader />;
+  if (error || !data) return <Alert>{error?.message ?? 'Could not load staff'}</Alert>;
+
+  const query = search.trim().toLowerCase();
+  const users = data.users.filter(
+    (u) => !query || u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query) || u.role.name.toLowerCase().includes(query),
+  );
+
+  const roleText = (u: StaffUser) => {
+    const role = roleById.get(u.role.id);
+    if (role && isKitchenStaff(role)) return `${u.role.name} · ${u.station?.name ?? 'All stations'}`;
+    return u.role.name;
+  };
+
+  return (
+    <>
+      <Alert kind="success" onClose={() => setNotice(null)}>
+        {notice}
+      </Alert>
+
+      <section className="card stations-card">
+        <header className="menu-items-head">
+          <div>
+            <h2>Staff</h2>
+            <p className="muted small">
+              {data.users.filter((u) => u.isActive).length} active · {data.users.length} total
+            </p>
+          </div>
+          {can('users.create') && (
+            <button className="btn btn-primary" onClick={() => setAdding(true)} disabled={!roleList.length}>
+              <Icon name="plus" size={16} /> Add staff
+            </button>
+          )}
+        </header>
+
+        <div className="menu-search">
+          <Icon name="search" size={16} />
+          <input
+            type="search"
+            placeholder="Search by name, email or role"
+            aria-label="Search staff"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="table-wrap">
+          <table className="table menu-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => {
+                const isMe = u.id === me.id;
+                const editable = can('users.update') && (!u.role.isSuperAdmin || me.isSuperAdmin);
+                return (
+                  <tr key={u.id} className={u.isActive ? '' : 'is-unavailable'}>
+                    <td>
+                      <strong>{u.name}</strong>
+                      {isMe && <span className="muted small"> (you)</span>}
+                      <div className="muted small">{u.email}</div>
+                    </td>
+                    <td>{roleText(u)}</td>
+                    <td>
+                      <span className={`badge ${u.isActive ? 'badge-completed' : 'badge-neutral'}`}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      {u.driver && roleById.get(u.role.id) && isDriverStaff(roleById.get(u.role.id)!) && (
+                        <div className="muted small">{DRIVER_STATUS_LABELS[u.driver.availabilityStatus]}</div>
+                      )}
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        {editable && (
+                          <button className="icon-btn" onClick={() => setEditing(u)} aria-label={`Edit ${u.name}`} title="Edit">
+                            <Icon name="pencil" size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {adding && (
+        <StaffDialog
+          user={null}
+          roles={assignableRoles}
+          stations={stationList}
+          onClose={() => setAdding(false)}
+          onSaved={async (message) => {
+            setAdding(false);
+            setNotice(message);
+            await reload();
+          }}
+        />
+      )}
+      {editing && (
+        <StaffDialog
+          user={editing}
+          isMe={editing.id === me.id}
+          roles={assignableRoles.some((r) => r.id === editing.role.id) ? assignableRoles : [...assignableRoles, roleById.get(editing.role.id)!]}
+          stations={stationList}
+          onClose={() => setEditing(null)}
+          onSaved={async (message) => {
+            setEditing(null);
+            setNotice(message);
+            await reload();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// ---- Add / edit a staff member ----
+
+function StaffDialog({
+  user,
+  isMe = false,
+  roles,
+  stations,
+  onClose,
+  onSaved,
+}: {
+  user: StaffUser | null;
+  isMe?: boolean;
+  roles: RoleInfo[];
+  stations: Station[];
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const [values, setValues] = useState({
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+    password: '',
+    roleId: String(user?.role.id ?? roles.find((r) => !r.isSuperAdmin)?.id ?? ''),
+    phone: user?.driver?.phone ?? '',
+    stationId: user?.station ? String(user.station.id) : '',
+  });
+  const [isActive, setIsActive] = useState(user?.isActive ?? true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
+
+  const set = (key: keyof typeof values) => (e: { target: { value: string } }) =>
+    setValues((v) => ({ ...v, [key]: e.target.value }));
+
+  const role = roles.find((r) => String(r.id) === values.roleId);
+  const kitchen = role ? isKitchenStaff(role) : false;
+  const driver = role ? isDriverStaff(role) : false;
+
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const parsed = userFormSchema.safeParse(form);
-    if (!parsed.success) return setFormErrors(zodFieldErrors(parsed.error));
+    const stationId = kitchen && values.stationId ? Number(values.stationId) : null;
+    const phone = driver ? values.phone.trim() : '';
 
-    const { phone, ...rest } = parsed.data;
+    if (!user) {
+      const parsed = userFormSchema.safeParse(values);
+      if (!parsed.success) return setErrors(zodFieldErrors(parsed.error));
+    } else {
+      if (values.name.trim().length < 2) return setErrors({ name: 'Name is required' });
+      if (values.password && values.password.length < 8) return setErrors({ password: 'At least 8 characters' });
+    }
+    setErrors({});
     setSaving(true);
-    setFormErrors({});
     try {
-      await api('/users', {
-        method: 'POST',
-        body: {
-          ...rest,
-          ...(rest.role === 'DRIVER' && phone && { phone }),
-          ...(rest.role === 'KITCHEN' && form.stationId && { stationId: Number(form.stationId) }),
-        },
-      });
-      setNotice(`Account created for ${rest.name}.`);
-      setForm(EMPTY);
-      await reload();
+      if (!user) {
+        await api('/users', {
+          method: 'POST',
+          body: {
+            name: values.name.trim(),
+            email: values.email.trim(),
+            password: values.password,
+            roleId: Number(values.roleId),
+            ...(stationId && { stationId }),
+            ...(phone && { phone }),
+          },
+        });
+        onSaved(`Account created for ${values.name.trim()}.`);
+      } else {
+        await api(`/users/${user.id}`, {
+          method: 'PATCH',
+          body: {
+            name: values.name.trim(),
+            ...(!isMe && { roleId: Number(values.roleId), isActive }),
+            stationId,
+            ...(driver && { phone }),
+            ...(values.password && { password: values.password }),
+          },
+        });
+        onSaved(values.password ? `Saved. ${user.name} now uses the new password and was signed out everywhere.` : 'Changes saved.');
+      }
     } catch (err) {
-      setFormErrors(apiFieldErrors(err));
+      setErrors(apiFieldErrors(err));
     } finally {
       setSaving(false);
     }
   }
 
-  const update = (user: StaffUser, body: Partial<{ role: Role; isActive: boolean; password: string; stationId: number | null }>) =>
-    run(`user:${user.id}`, async () => {
-      await api(`/users/${user.id}`, { method: 'PATCH', body });
-      await reload();
-    });
-
-  const resetPassword = (user: StaffUser) => {
-    const password = window.prompt(`New password for ${user.name} (at least 8 characters):`);
-    if (!password) return;
-    if (password.length < 8) return setError('Password must be at least 8 characters');
-    update(user, { password })?.then(() => setNotice(`Password updated for ${user.name}.`));
-  };
+  async function signOutEverywhere() {
+    if (!user) return;
+    setSigningOut(true);
+    try {
+      await api(`/users/${user.id}/sign-out`, { method: 'POST' });
+      setSignedOut(true);
+    } catch (err) {
+      setErrors({ form: errorMessage(err) });
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
-    <div className="admin-grid">
-      <section className="card">
-        <h2>Users</h2>
-        <Alert kind="success" onClose={() => setNotice(null)}>
-          {notice}
-        </Alert>
-        <Alert onClose={() => setError(null)}>{actionError}</Alert>
-        {error && <Alert>{error.message}</Alert>}
-        {loading ? (
-          <Loader />
-        ) : (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {data?.users.map((u) => {
-                  const isMe = u.id === me.id;
-                  return (
-                    <tr key={u.id} className={u.isActive ? '' : 'inactive-row'}>
-                      <td>
-                        <strong>{u.name}</strong>
-                        {isMe && <span className="muted small"> (you)</span>}
-                        <div className="muted small">{u.email}</div>
-                      </td>
-                      <td>
-                        <select
-                          aria-label={`Role for ${u.name}`}
-                          value={u.role}
-                          disabled={isMe || busy === `user:${u.id}`}
-                          onChange={(e) => update(u, { role: e.target.value as Role })}
-                        >
-                          {ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {ROLE_LABELS[r]}
-                            </option>
-                          ))}
-                        </select>
-                        {u.role === 'KITCHEN' && (
-                          <select
-                            className="select-sm"
-                            style={{ display: 'block', marginTop: 6 }}
-                            aria-label={`Station for ${u.name}`}
-                            value={u.station?.id ?? ''}
-                            disabled={busy === `user:${u.id}`}
-                            onChange={(e) => update(u, { stationId: e.target.value ? Number(e.target.value) : null })}
-                          >
-                            <option value="">All stations (head chef)</option>
-                            {stationList.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-                      <td>
-                        {u.isActive ? (
-                          <span className="badge badge-confirmed">Active</span>
-                        ) : (
-                          <span className="badge badge-neutral">Inactive</span>
-                        )}
-                        {u.role === 'DRIVER' && u.driver && (
-                          <div className="muted small">{DRIVER_STATUS_LABELS[u.driver.availabilityStatus]}</div>
-                        )}
-                      </td>
-                      <td>
-                        <div className="actions">
-                          <button className="btn btn-ghost btn-sm" onClick={() => resetPassword(u)} disabled={busy === `user:${u.id}`}>
-                            Reset password
-                          </button>
-                          {!isMe && (
-                            <button
-                              className={`btn btn-sm ${u.isActive ? 'btn-danger' : 'btn-ghost'}`}
-                              disabled={busy === `user:${u.id}`}
-                              onClick={() => update(u, { isActive: !u.isActive })}
-                            >
-                              {u.isActive ? 'Deactivate' : 'Reactivate'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="card">
-        <h2>New user</h2>
-        <form className="stack" onSubmit={create} noValidate>
-          <Alert>{formErrors.form}</Alert>
-          <Field label="Full name" htmlFor="u-name" error={formErrors.name}>
-            <input id="u-name" value={form.name} onChange={setField('name')} />
+    <Modal
+      open
+      title={user ? `Edit ${user.name}` : 'Add staff'}
+      description={user ? user.email : 'They sign in with this email and password.'}
+      onClose={onClose}
+      onSubmit={onSubmit}
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-dark" disabled={saving}>
+            {saving ? 'Saving…' : user ? 'Save changes' : 'Create account'}
+          </button>
+        </>
+      }
+    >
+      <div className="stack">
+        <Alert>{errors.form}</Alert>
+        <div className="form-grid">
+          <Field label="Full name" htmlFor="st-name" error={errors.name}>
+            <input id="st-name" value={values.name} onChange={set('name')} />
           </Field>
-          <Field label="Email" htmlFor="u-email" error={formErrors.email}>
-            <input id="u-email" type="email" value={form.email} onChange={setField('email')} autoComplete="off" />
-          </Field>
-          <Field label="Password" htmlFor="u-password" error={formErrors.password}>
-            <input id="u-password" type="password" value={form.password} onChange={setField('password')} autoComplete="new-password" />
-          </Field>
-          <Field label="Role" htmlFor="u-role" error={formErrors.role}>
-            <select id="u-role" value={form.role} onChange={setField('role')}>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
+          {!user && (
+            <Field label="Email" htmlFor="st-email" error={errors.email}>
+              <input id="st-email" type="email" value={values.email} onChange={set('email')} autoComplete="off" />
+            </Field>
+          )}
+          <Field
+            label="Role"
+            htmlFor="st-role"
+            error={errors.roleId}
+            hint={isMe ? "You can't change your own role." : role?.description ?? undefined}
+          >
+            <select id="st-role" value={values.roleId} onChange={set('roleId')} disabled={isMe}>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
                 </option>
               ))}
             </select>
           </Field>
-          {form.role === 'KITCHEN' && (
-            <Field label="Station" htmlFor="u-station">
-              <select id="u-station" value={form.stationId} onChange={setField('stationId')}>
+          {kitchen && (
+            <Field label="Station" htmlFor="st-station" hint="No station = head chef, who sees every station.">
+              <select id="st-station" value={values.stationId} onChange={set('stationId')}>
                 <option value="">All stations (head chef)</option>
-                {stationList.map((s) => (
+                {stations.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
@@ -198,16 +305,44 @@ export function UsersTab() {
               </select>
             </Field>
           )}
-          {form.role === 'DRIVER' && (
-            <Field label="Driver phone (optional)" htmlFor="u-phone" error={formErrors.phone}>
-              <input id="u-phone" type="tel" value={form.phone} onChange={setField('phone')} />
+          {driver && (
+            <Field label="Driver phone" htmlFor="st-phone" error={errors.phone}>
+              <input id="st-phone" type="tel" value={values.phone} onChange={set('phone')} />
             </Field>
           )}
-          <button className="btn btn-dark" disabled={saving}>
-            {saving ? 'Creating…' : 'Create account'}
-          </button>
-        </form>
-      </section>
-    </div>
+          <Field
+            label={user ? 'New password (optional)' : 'Password'}
+            htmlFor="st-password"
+            error={errors.password}
+            hint={user ? 'Leave empty to keep their password. Setting one signs them out everywhere.' : 'At least 8 characters.'}
+          >
+            <input id="st-password" type="password" value={values.password} onChange={set('password')} autoComplete="new-password" />
+          </Field>
+        </div>
+
+        {user && !isMe && (
+          <div className="switch-row">
+            <div>
+              <strong>Active</strong>
+              <p className="muted small">Inactive staff can&apos;t sign in and are signed out straight away.</p>
+            </div>
+            <Switch checked={isActive} label="Active" onChange={setIsActive} />
+          </div>
+        )}
+
+        {user && (
+          <div className="danger-zone">
+            <span className="muted small">
+              {signedOut
+                ? 'Signed out of every device. They need to sign in again.'
+                : 'Lost phone or shared login? End every session without changing the password.'}
+            </span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={signOutEverywhere} disabled={signingOut || signedOut}>
+              <Icon name="logout" size={14} /> {signingOut ? 'Signing out…' : 'Sign out of all devices'}
+            </button>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

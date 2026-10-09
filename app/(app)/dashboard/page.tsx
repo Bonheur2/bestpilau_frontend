@@ -201,10 +201,11 @@ function Pipeline({ stats, linkable }: { stats: OrderStats; linkable: boolean })
 
 export default function DashboardPage() {
   const { user, can } = useSessionUser();
-  const isCare = can('orders');
-  const isKitchen = can('kitchen');
-  const isDriver = can('delivery') && !isCare && !isKitchen;
-  const hasStats = isCare || isKitchen || can('delivery');
+  const isCare = can('orders.view');
+  const isKitchen = can('kitchen.view');
+  const isDriver = can('deliveries.deliver') && !isCare && !isKitchen;
+  const hasStats = isCare || isKitchen || can('deliveries.view') || can('deliveries.deliver');
+  const seesDrivers = can('orders.manage') || can('deliveries.view');
 
   const { data: stats, error } = useApi<OrderStats>('/orders/stats', { interval: 10_000, enabled: hasStats, live: ['orders', 'tickets'] });
   const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -215,7 +216,7 @@ export default function DashboardPage() {
         title="Dashboard"
         subtitle={date}
         actions={
-          isCare && (
+          can('orders.create') && (
             <Link href="/orders/new" className="btn btn-primary">
               <Icon name="plus" /> New order
             </Link>
@@ -259,7 +260,7 @@ export default function DashboardPage() {
             <OrderList path="/orders?status=PENDING&sort=oldest&limit=6" empty="Nothing waiting" />
           </Panel>
         )}
-        {isCare && (
+        {isCare && seesDrivers && (
           <Panel title="Drivers">
             <DriverList />
           </Panel>

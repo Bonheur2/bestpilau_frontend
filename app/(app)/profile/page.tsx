@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import { api, apiFieldErrors } from '@/lib/api';
-import { useSessionUser } from '@/lib/auth';
+import { api, apiFieldErrors, errorMessage } from '@/lib/api';
+import { isKitchenStaff, roleLabel, useSessionUser } from '@/lib/auth';
 import { useApi } from '@/lib/hooks';
 import { initials } from '@/lib/format';
-import { ROLE_LABELS } from '@/lib/constants';
 import { passwordSchema, profileSchema, zodFieldErrors } from '@/lib/schemas';
 import type { Profile } from '@/lib/types';
 import { Icon } from '@/components/Icon';
@@ -27,6 +26,7 @@ export default function ProfilePage() {
       <DetailsSection profile={profile} onSaved={reload} />
       <AccountSection profile={profile} />
       <PasswordSection profile={profile} onChanged={reload} />
+      <SessionsSection profile={profile} onChanged={reload} />
     </div>
   );
 }
@@ -40,10 +40,7 @@ function ProfileHeader({ profile }: { profile: Profile }) {
       <div className="profile-header-text">
         <h1>{profile.name}</h1>
         <p>
-          <span>
-            {ROLE_LABELS[profile.role]}
-            {profile.role === 'KITCHEN' && ` · ${profile.stationName ?? 'All stations'}`}
-          </span>
+          <span>{roleLabel(profile)}</span>
           <span className="profile-header-sep" aria-hidden="true">
             ·
           </span>
@@ -170,8 +167,8 @@ function DetailsSection({ profile, onSaved }: { profile: Profile; onSaved: () =>
 
 function AccountSection({ profile }: { profile: Profile }) {
   const rows: [string, string][] = [
-    ['Role', ROLE_LABELS[profile.role]],
-    ...(profile.role === 'KITCHEN'
+    ['Role', profile.roleName],
+    ...(isKitchenStaff(profile)
       ? ([['Station', profile.stationName ?? 'All stations (head chef)']] as [string, string][])
       : []),
     ['Member since', formatDate(profile.createdAt) ?? '—'],
@@ -220,7 +217,7 @@ function PasswordInput({
 const EMPTY_PASSWORD = { currentPassword: '', newPassword: '', confirmPassword: '' };
 
 function PasswordSection({ profile, onChanged }: { profile: Profile; onChanged: () => void }) {
-  const { setSession } = useSessionUser();
+  const { rotateSession } = useSessionUser();
   const [values, setValues] = useState(EMPTY_PASSWORD);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -239,12 +236,13 @@ function PasswordSection({ profile, onChanged }: { profile: Profile; onChanged: 
     setErrors({});
     setSaving(true);
     try {
-      const { token, user } = await api<{ token: string; user: Profile }>('/auth/me/password', {
-        method: 'POST',
-        body: { currentPassword: values.currentPassword, newPassword: values.newPassword },
-      });
       // Other devices are signed out; this one continues with a fresh token.
-      setSession(user, token);
+      await rotateSession(() =>
+        api<{ token: string; user: Profile }>('/auth/me/password', {
+          method: 'POST',
+          body: { currentPassword: values.currentPassword, newPassword: values.newPassword },
+        }),
+      );
       setValues(EMPTY_PASSWORD);
       setChanged(true);
       onChanged();
@@ -289,6 +287,55 @@ function PasswordSection({ profile, onChanged }: { profile: Profile; onChanged: 
           <PasswordInput id="pw-confirm" value={values.confirmPassword} onChange={set('confirmPassword')} autoComplete="new-password" />
         </Field>
       </div>
+    </Section>
+  );
+}
+
+// Ends every other session (including copies of this device's token); this device continues.
+function SessionsSection({ profile, onChanged }: { profile: Profile; onChanged: () => void }) {
+  const { rotateSession } = useSessionUser();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function signOutOthers() {
+    setBusy(true);
+    setError(null);
+    try {
+      await rotateSession(() => api<{ token: string; user: Profile }>('/auth/me/sign-out-others', { method: 'POST' }));
+      setDone(true);
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const last = formatDate(profile.sessionsRevokedAt);
+
+  return (
+    <Section
+      title="Sessions"
+      description="Signed in somewhere you shouldn't be, or think someone copied your login? End every other session."
+      footer={
+        <>
+          <span className="muted small settings-footer-note">{last ? `Last used ${last}` : 'Never used'}</span>
+          <button type="button" className="btn btn-dark" onClick={signOutOthers} disabled={busy}>
+            <Icon name="logout" size={15} /> {busy ? 'Signing out…' : 'Sign out of all other devices'}
+          </button>
+        </>
+      }
+    >
+      {done ? (
+        <Alert kind="success">Every other device was signed out. You're still signed in here.</Alert>
+      ) : (
+        <p className="muted small" style={{ margin: 0 }}>
+          Every phone, tablet or browser signed in as you, other than this one, is signed out straight away and has to sign in
+          again. Your password stays the same.
+        </p>
+      )}
+      <Alert>{error}</Alert>
     </Section>
   );
 }

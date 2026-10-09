@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAction, useApi } from '@/lib/hooks';
+import { useSessionUser } from '@/lib/auth';
 import { DRIVER_STATUS_LABELS } from '@/lib/constants';
 import { Icon } from '@/components/Icon';
 import { OrderCard } from '@/components/OrderCard';
@@ -23,7 +24,7 @@ const FILTERS = [
 
 export default function OrdersPage() {
   return (
-    <Guard modules={['orders']}>
+    <Guard permissions={['orders.view']}>
       <Suspense fallback={<Loader />}>
         <Orders />
       </Suspense>
@@ -65,7 +66,10 @@ function Orders() {
 
   const { data, error, loading, reload } = useApi<{ orders: Order[] }>(`/orders?${filter.query}`, { interval: 10_000, live: ['orders'] });
   const overdue = useApi<{ orders: Order[] }>('/orders?overdue=true', { interval: 10_000, live: ['orders'] });
-  const drivers = useApi<{ drivers: Driver[] }>('/drivers', { interval: 15_000, live: ['orders'] });
+  const { can } = useSessionUser();
+  // Viewers see orders; only managers recheck them and assign drivers
+  const canManage = can('orders.manage');
+  const drivers = useApi<{ drivers: Driver[] }>('/drivers', { interval: 15_000, live: ['orders'], enabled: canManage });
   const { busy, error: actionError, setError, run } = useAction();
 
   const driverList = drivers.data?.drivers ?? [];
@@ -90,9 +94,11 @@ function Orders() {
       <PageHeader
         title="Orders"
         actions={
-          <Link href="/orders/new" className="btn btn-primary">
-            <Icon name="plus" /> New order
-          </Link>
+          can('orders.create') && (
+            <Link href="/orders/new" className="btn btn-primary">
+              <Icon name="plus" /> New order
+            </Link>
+          )
         }
       />
 
@@ -105,6 +111,7 @@ function Orders() {
       <Alert onClose={() => setError(null)}>{actionError}</Alert>
       {error && <Alert>{error.message}</Alert>}
 
+      {canManage && (
       <div className="driver-strip" aria-label="Driver availability">
         <span className="muted small">Drivers:</span>
         {driverList.length === 0 && <span className="muted small">none registered</span>}
@@ -115,6 +122,7 @@ function Orders() {
           </span>
         ))}
       </div>
+      )}
 
       <div className="tabs" role="tablist">
         {FILTERS.map((f) => (
@@ -137,7 +145,7 @@ function Orders() {
         <div className="order-grid">
           {data.orders.map((order) => (
             <OrderCard key={order.id} order={order} showTimeline>
-              {order.status === 'PENDING' && (
+              {canManage && order.status === 'PENDING' && (
                 <button
                   className={`btn btn-sm ${order.isOverdue ? 'btn-danger' : 'btn-ghost'}`}
                   disabled={busy === `recheck:${order.id}`}
@@ -146,7 +154,7 @@ function Orders() {
                   <Icon name="refresh" size={15} /> Recheck
                 </button>
               )}
-              {order.status !== 'DELIVERED' && (
+              {canManage && order.status !== 'DELIVERED' && (
                 <DriverSelect
                   order={order}
                   drivers={driverList}

@@ -14,7 +14,7 @@ type DeliveryAction = 'accept' | 'deliver';
 
 export default function DriverPage() {
   return (
-    <Guard modules={['delivery']}>
+    <Guard permissions={['deliveries.view', 'deliveries.deliver']}>
       <DeliveriesScreen />
     </Guard>
   );
@@ -24,11 +24,11 @@ export default function DriverPage() {
 function DeliveriesScreen() {
   const { user, can } = useSessionUser();
   if (user.driverId) return <Driver />;
-  if (can('orders') || can('users')) return <DeliveriesOverview />;
+  if (can('deliveries.view')) return <DeliveriesOverview />;
   return (
     <>
       <PageHeader title="Deliveries" />
-      <Alert>Your account has no driver profile. Ask an admin to set your role to Driver.</Alert>
+      <Alert>Your account has no driver profile. Ask an admin to give your role the Deliver orders permission.</Alert>
     </>
   );
 }
