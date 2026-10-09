@@ -6,6 +6,7 @@ import { formatDateTime, formatDay, formatMoney, formatSeconds, formatTime } fro
 import { TICKET_STATUS_LABELS } from '@/lib/constants';
 import type { DeliveriesHistory, HistoryResponse, HistoryView, KitchenHistory, OrdersHistory } from '@/lib/types';
 import { Alert, Guard, Loader, PageHeader, StatusBadge } from '@/components/ui';
+import { OrderNumber, orderLabel } from '@/components/OrderNumber';
 
 type RangeKey = 'today' | 'yesterday' | 'week' | 'month';
 
@@ -215,7 +216,7 @@ function OrdersSection({ data, multiDay }: { data: OrdersHistory; multiDay: bool
           {entries.map((o) => (
             <tr key={o.id}>
               <td>
-                <strong>#{o.id}</strong>
+                <OrderNumber number={o.orderNumber} id={o.id} />
               </td>
               <td>{multiDay ? formatDateTime(o.createdAt) : formatTime(o.createdAt)}</td>
               <td>{o.customerName}</td>
@@ -290,7 +291,7 @@ function KitchenSection({ data, multiDay }: { data: KitchenHistory; multiDay: bo
           {entries.map((t) => (
             <tr key={t.id}>
               <td>
-                <strong>#{t.orderId}</strong>
+                <OrderNumber number={t.orderNumber} id={t.orderId} />
                 <div className="muted small">{t.customerName}</div>
               </td>
               <td>{multiDay ? formatDateTime(t.createdAt) : formatTime(t.createdAt)}</td>
@@ -357,7 +358,7 @@ function DeliveriesSection({ data, multiDay }: { data: DeliveriesHistory; multiD
           {entries.map((o) => (
             <tr key={o.id}>
               <td>
-                <strong>#{o.id}</strong>
+                <OrderNumber number={o.orderNumber} id={o.id} />
               </td>
               <td>{multiDay ? formatDateTime(o.deliveredAt) : formatTime(o.deliveredAt)}</td>
               <td>{o.customerName}</td>
