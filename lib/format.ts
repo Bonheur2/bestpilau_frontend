@@ -52,3 +52,12 @@ export const initials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('');
+
+// 4:18 for under an hour, then "10h 09m", then "2d 3h": a ticket 10 hours late is not "609:42"
+export function formatElapsed(ms: number) {
+  const minutes = Math.floor(Math.max(0, ms) / 60_000);
+  if (minutes < 60) return formatDuration(ms);
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
