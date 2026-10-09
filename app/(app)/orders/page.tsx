@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -64,7 +64,18 @@ function Orders() {
   const router = useRouter();
   const filter = FILTERS.find((f) => f.key === params.get('filter')) ?? FILTERS[0];
 
-  const { data, error, loading, reload } = useApi<{ orders: Order[] }>(`/orders?${filter.query}`, { interval: 10_000, live: ['orders'] });
+  // Search by order number (0042 or ORD-1009-0042), customer name or phone
+  const [search, setSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, error, loading, reload } = useApi<{ orders: Order[] }>(
+    `/orders?${filter.query}${searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : ''}`,
+    { interval: 10_000, live: ['orders'] },
+  );
   const overdue = useApi<{ orders: Order[] }>('/orders?overdue=true', { interval: 10_000, live: ['orders'] });
   const { can } = useSessionUser();
   // Viewers see orders; only managers recheck them and assign drivers
@@ -124,6 +135,7 @@ function Orders() {
       </div>
       )}
 
+      <div className="kitchen-bar">
       <div className="tabs" role="tablist">
         {FILTERS.map((f) => (
           <button
@@ -137,6 +149,17 @@ function Orders() {
             {f.key === 'overdue' && overdueCount > 0 && <span className="count">{overdueCount}</span>}
           </button>
         ))}
+      </div>
+      <div className="menu-search kitchen-search">
+        <Icon name="search" size={16} />
+        <input
+          type="search"
+          placeholder="Find order, e.g. 0042"
+          aria-label="Find an order by number, customer name or phone"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
       </div>
 
       {loading ? (
@@ -166,7 +189,7 @@ function Orders() {
           ))}
         </div>
       ) : (
-        <Empty title="No orders" />
+        <Empty title={searchTerm ? 'No orders match your search' : 'No orders'} />
       )}
     </>
   );
