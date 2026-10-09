@@ -96,6 +96,7 @@ export interface Ticket {
   station: StationRef;
   order: {
     id: number;
+    orderNumber: string;
     customerName: string;
     location: string;
     notes: string | null;
@@ -117,6 +118,8 @@ export interface OrderDriver {
 
 export interface Order {
   id: number;
+  /** e.g. ORD-1009-0042 */
+  orderNumber: string;
   customerName: string;
   customerPhone: string | null;
   location: string;
@@ -269,6 +272,7 @@ export type OrdersHistory = HistoryBase<
   OrdersSummary,
   {
     id: number;
+    orderNumber: string;
     createdAt: string;
     customerName: string;
     location: string;
@@ -286,6 +290,7 @@ export type KitchenHistory = HistoryBase<
   {
     id: number;
     orderId: number;
+    orderNumber: string;
     createdAt: string;
     stationName: string;
     customerName: string;
@@ -301,6 +306,7 @@ export type DeliveriesHistory = HistoryBase<
   DeliveriesSummary,
   {
     id: number;
+    orderNumber: string;
     customerName: string;
     location: string;
     totalAmount: number;
