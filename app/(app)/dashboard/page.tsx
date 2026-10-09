@@ -276,7 +276,7 @@ export default function DashboardPage() {
             <Panel
               title={user.stationName ? `New tickets · ${user.stationName}` : 'New tickets'}
               action={
-                <Link href="/kitchen" className="panel-link">
+                <Link href={can('kitchen.confirm') ? '/kitchen/confirm' : can('kitchen.ready') ? '/kitchen/ready' : '/kitchen'} className="panel-link">
                   Open kitchen
                 </Link>
               }
