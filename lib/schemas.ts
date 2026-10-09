@@ -13,7 +13,7 @@ export const orderFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'Customer phone number is required')
-    .regex(phonePattern, 'Enter a valid Rwanda phone number (e.g. +250787306047)'),
+    .regex(phonePattern, 'Enter a valid Rwanda phone number (e.g. +250788468790)'),
   location: z.string().trim().min(3, 'Delivery location is required').max(200),
   notes: z.string().trim().max(500, 'Notes are too long'),
   items: z
@@ -26,7 +26,7 @@ export const userFormSchema = z.object({
   email: z.string().trim().email('Enter a valid email'),
   password: z.string().min(8, 'At least 8 characters'),
   roleId: z.string().min(1, 'Choose a role'),
-  phone: z.string().trim().regex(phonePattern, 'Enter a valid Rwanda phone number (e.g. +250787306047)'),
+  phone: z.string().trim().regex(phonePattern, 'Enter a valid Rwanda phone number (e.g. +250788468790)'),
 });
 
 export const productFormSchema = z.object({
@@ -37,7 +37,7 @@ export const productFormSchema = z.object({
 
 export const profileSchema = z.object({
   name: z.string().trim().min(2, 'Name is too short').max(80),
-  phone: z.string().trim().regex(phonePattern, 'Enter a valid Rwanda phone number (e.g. +250787306047)'),
+  phone: z.string().trim().regex(phonePattern, 'Enter a valid Rwanda phone number (e.g. +250788468790)'),
 });
 
 export const passwordSchema = z
