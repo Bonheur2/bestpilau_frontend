@@ -1,41 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
+import { useQueryState } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
 import type { Module } from '@/lib/types';
-import { Guard, PageHeader } from '@/components/ui';
+import { Guard, Loader, PageHeader } from '@/components/ui';
 import { UsersTab } from '@/components/admin/UsersTab';
-import { PermissionsTab } from '@/components/admin/PermissionsTab';
-import { MenuTab } from '@/components/admin/MenuTab';
-import { StationsTab } from '@/components/admin/StationsTab';
 import { LiveStaffTab } from '@/components/admin/LiveStaffTab';
+import { PermissionsTab } from '@/components/admin/PermissionsTab';
 
-type TabKey = 'users' | 'live' | 'permissions' | 'menu' | 'stations';
+type TabKey = 'users' | 'live' | 'permissions';
 
 const TABS: { key: TabKey; module: Module; label: string }[] = [
   { key: 'users', module: 'users', label: 'Users & roles' },
   { key: 'live', module: 'users', label: 'Live staff' },
   { key: 'permissions', module: 'permissions', label: 'Permissions' },
-  { key: 'menu', module: 'menu', label: 'Menu' },
-  { key: 'stations', module: 'menu', label: 'Stations' },
 ];
 
-export default function AdminPage() {
+export default function SettingsPage() {
   return (
-    <Guard modules={['users', 'permissions', 'menu']}>
-      <Admin />
+    <Guard modules={['users', 'permissions']}>
+      <Suspense fallback={<Loader />}>
+        <Settings />
+      </Suspense>
     </Guard>
   );
 }
 
-function Admin() {
+function Settings() {
   const { can } = useAuth();
   const tabs = TABS.filter((t) => can(t.module));
-  const [active, setActive] = useState<TabKey>(tabs[0].key);
+  const [active, setActive] = useQueryState<TabKey>('tab', tabs.map((t) => t.key), tabs[0].key);
 
   return (
     <>
-      <PageHeader title="Admin" />
+      <PageHeader title="Settings" subtitle="Staff accounts, who is online, and what each role can access" />
       <div className="tabs" role="tablist">
         {tabs.map((t) => (
           <button
@@ -50,10 +49,8 @@ function Admin() {
         ))}
       </div>
       {active === 'users' && <UsersTab />}
-      {active === 'permissions' && <PermissionsTab />}
-      {active === 'menu' && <MenuTab />}
-      {active === 'stations' && <StationsTab />}
       {active === 'live' && <LiveStaffTab />}
+      {active === 'permissions' && <PermissionsTab />}
     </>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
-import { useApi } from '@/lib/hooks';
+import { Suspense, useMemo, type ReactNode } from 'react';
+import { useApi, useQueryState } from '@/lib/hooks';
 import { formatDateTime, formatDay, formatMoney, formatSeconds, formatTime } from '@/lib/format';
 import { TICKET_STATUS_LABELS } from '@/lib/constants';
 import type { DeliveriesHistory, HistoryResponse, HistoryView, KitchenHistory, OrdersHistory } from '@/lib/types';
@@ -46,14 +46,17 @@ function rangeBounds(key: RangeKey) {
 export default function HistoryPage() {
   return (
     <Guard modules={['orders', 'kitchen', 'delivery']}>
-      <History />
+      <Suspense fallback={<Loader />}>
+        <History />
+      </Suspense>
     </Guard>
   );
 }
 
 function History() {
-  const [range, setRange] = useState<RangeKey>('today');
-  const [view, setView] = useState<HistoryView | null>(null);
+  const [range, setRange] = useQueryState<RangeKey>('range', ['today', 'yesterday', 'week', 'month'], 'today');
+  // '' = the server's default view for this role
+  const [view, setView] = useQueryState<HistoryView | ''>('view', ['', 'orders', 'kitchen', 'deliveries'], '');
 
   const path = useMemo(() => {
     const { from, to } = rangeBounds(range);

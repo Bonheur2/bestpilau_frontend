@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useSessionUser } from '@/lib/auth';
-import { useAction, useApi } from '@/lib/hooks';
+import { isAllOrId, useAction, useApi, useQueryState } from '@/lib/hooks';
 import { CONFIRM_MINUTES } from '@/lib/constants';
 import type { Station, Ticket } from '@/lib/types';
 import { Icon } from '@/components/Icon';
@@ -13,7 +13,9 @@ import { Alert, Empty, Guard, Loader, PageHeader } from '@/components/ui';
 export default function KitchenPage() {
   return (
     <Guard modules={['kitchen']}>
-      <Kitchen />
+      <Suspense fallback={<Loader />}>
+        <Kitchen />
+      </Suspense>
     </Guard>
   );
 }
@@ -22,7 +24,9 @@ function Kitchen() {
   const { user } = useSessionUser();
   // Cooks are fixed to their station; the head chef can switch between stations.
   const fixedStation = user.stationId;
-  const [selected, setSelected] = useState<number | 'all'>('all');
+  const [stationParam, setStationParam] = useQueryState<string>('station', isAllOrId, 'all');
+  const selected: number | 'all' = stationParam === 'all' ? 'all' : Number(stationParam);
+  const setSelected = (value: number | 'all') => setStationParam(String(value));
   const stationId = fixedStation ?? (selected === 'all' ? null : selected);
 
   const stations = useApi<{ stations: Station[] }>('/stations', { enabled: !fixedStation, live: ['tickets'] });

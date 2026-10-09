@@ -19,7 +19,8 @@ const NAV: { href: string; label: string; icon: IconName; modules?: Module[] }[]
   { href: '/kitchen', label: 'Kitchen', icon: 'flame', modules: ['kitchen'] },
   { href: '/driver', label: 'Deliveries', icon: 'truck', modules: ['delivery'] },
   { href: '/history', label: 'History', icon: 'clock', modules: ['orders', 'kitchen', 'delivery'] },
-  { href: '/admin', label: 'Admin', icon: 'settings', modules: ['users', 'permissions', 'menu'] },
+  { href: '/menu', label: 'Menu', icon: 'book', modules: ['menu'] },
+  { href: '/settings', label: 'Settings', icon: 'settings', modules: ['users', 'permissions'] },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {

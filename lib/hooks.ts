@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, errorMessage } from './api';
 import { useLiveStatus, useLiveTopics, type LiveTopic } from './realtime';
 
@@ -86,3 +87,37 @@ export function useNow(interval: number | null = 1000) {
   }, [interval]);
   return now;
 }
+
+/**
+ * A value kept in the page address (?key=value), so reloading, the back button and shared
+ * links open the same tab or filter. Unknown values fall back to `fallback`, which is left
+ * out of the address to keep it clean. Pages using this must render inside <Suspense>.
+ */
+export function useQueryState<T extends string>(
+  key: string,
+  allowed: readonly T[] | ((value: string) => boolean),
+  fallback: T,
+) {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const raw = params.get(key);
+  const valid = typeof allowed === 'function' ? allowed : (v: string) => (allowed as readonly string[]).includes(v);
+  const value = raw !== null && valid(raw) ? (raw as T) : fallback;
+
+  const setValue = useCallback(
+    (next: T) => {
+      const query = new URLSearchParams(params.toString());
+      if (next === fallback) query.delete(key);
+      else query.set(key, next);
+      const qs = query.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, router, pathname, key, fallback],
+  );
+
+  return [value, setValue] as const;
+}
+
+/** Accepts "all" or a positive whole number, e.g. a station or category id in the address. */
+export const isAllOrId = (value: string) => value === 'all' || /^[1-9]\d*$/.test(value);

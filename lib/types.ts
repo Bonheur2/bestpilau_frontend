@@ -32,7 +32,10 @@ export interface Station extends StationRef {
   isDefault: boolean;
   isActive: boolean;
   createdAt: string;
+  /** Items assigned to this station directly (overriding their category) */
   productCount: number;
+  /** Items this station actually prepares, directly or through their category */
+  itemCount: number;
   categoryCount: number;
   staffCount: number;
   openTickets: number;

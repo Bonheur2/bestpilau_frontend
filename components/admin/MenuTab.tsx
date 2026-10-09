@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import { api, apiFieldErrors } from '@/lib/api';
-import { useAction, useApi } from '@/lib/hooks';
+import { isAllOrId, useAction, useApi, useQueryState } from '@/lib/hooks';
 import { formatMoney } from '@/lib/format';
 import { productFormSchema, zodFieldErrors } from '@/lib/schemas';
 import type { Category, Product, Station } from '@/lib/types';
@@ -21,7 +21,9 @@ export function MenuTab() {
   const stations = useApi<{ stations: Station[] }>('/stations');
   const { busy, error: actionError, setError, run } = useAction();
 
-  const [selected, setSelected] = useState<Selection>('all');
+  const [categoryParam, setCategoryParam] = useQueryState<string>('category', isAllOrId, 'all');
+  const selected: Selection = categoryParam === 'all' ? 'all' : Number(categoryParam);
+  const setSelected = (value: Selection) => setCategoryParam(String(value));
   const [search, setSearch] = useState('');
   const [itemDialog, setItemDialog] = useState<Product | 'new' | null>(null);
   const [categoryDialog, setCategoryDialog] = useState<Category | 'new' | null>(null);

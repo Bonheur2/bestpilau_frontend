@@ -2168,3 +2168,27 @@ input:disabled {
     display: none;
   }
 }
+
+/* ---------- Stations ---------- */
+.stations-card {
+  padding: 0;
+}
+.stations-card .table-wrap {
+  margin: 0;
+  padding: 0 8px 6px;
+}
+.station-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.icon-btn:disabled:hover {
+  color: var(--text-muted);
+  border-color: var(--neutral);
+  background: var(--white);
+}

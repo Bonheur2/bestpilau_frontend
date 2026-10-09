@@ -76,7 +76,7 @@ export function Guard({ modules, children }: { modules: Module[]; children: Reac
   if (!modules.some(can)) {
     return (
       <Empty title="No access">
-        Your role does not have access to this page. Ask an admin to enable it under Admin → Permissions.
+        Your role does not have access to this page. Ask an admin to enable it under Settings → Permissions.
       </Empty>
     );
   }
