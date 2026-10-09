@@ -2,37 +2,18 @@
 
 import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Logo } from '@/components/Logo';
-import { Icon, type IconName } from '@/components/Icon';
-import type { Permission } from '@/lib/types';
+import { SidebarNav } from '@/components/SidebarNav';
 import { Alert, FullScreenLoader } from '@/components/ui';
 import { UserMenu } from '@/components/UserMenu';
 import { LiveAlerts, LiveControls } from '@/components/LiveAlerts';
 import { RealtimeProvider } from '@/lib/realtime';
 
-// Each entry shows when the user's role has any of its permissions
-const NAV: { href: string; label: string; icon: IconName; permissions?: Permission[] }[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: 'grid' },
-  { href: '/orders/new', label: 'New order', icon: 'plus', permissions: ['orders.create'] },
-  { href: '/orders', label: 'Orders', icon: 'list', permissions: ['orders.view'] },
-  { href: '/kitchen', label: 'Kitchen', icon: 'flame', permissions: ['kitchen.view'] },
-  { href: '/driver', label: 'Deliveries', icon: 'truck', permissions: ['deliveries.view', 'deliveries.deliver'] },
-  {
-    href: '/history',
-    label: 'History',
-    icon: 'clock',
-    permissions: ['orders.view', 'kitchen.view', 'deliveries.view', 'deliveries.deliver'],
-  },
-  { href: '/menu', label: 'Menu', icon: 'book', permissions: ['menu.view'] },
-  { href: '/settings', label: 'Settings', icon: 'settings', permissions: ['users.view', 'roles.view', 'settings.manage'] },
-];
-
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, error, refresh } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user && !error) router.replace('/login');
@@ -72,8 +53,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
   if (!user) return <FullScreenLoader label="Signing out…" />;
 
-  const items = NAV.filter((item) => !item.permissions || item.permissions.some((p) => user.permissions.includes(p)));
-
   return (
     <RealtimeProvider>
     <LiveAlerts />
@@ -82,19 +61,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Link href="/dashboard" className="sidebar-logo">
           <Logo size={104} />
         </Link>
-        <nav className="nav" aria-label="Main">
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`nav-link ${pathname === item.href ? 'active' : ''}`}
-              aria-current={pathname === item.href ? 'page' : undefined}
-            >
-              <Icon name={item.icon} />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav />
       </aside>
       <div className="content">
         <header className="topbar">
