@@ -4,10 +4,11 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useSessionUser } from '@/lib/auth';
 import { useApi, useNow } from '@/lib/hooks';
-import { formatDuration, formatMoney, formatSeconds, formatTime } from '@/lib/format';
+import { formatDuration, formatElapsed, formatMoney, formatSeconds, formatTime } from '@/lib/format';
 import { DRIVER_STATUS_LABELS, TICKET_STATUS_LABELS } from '@/lib/constants';
 import type { Driver, Order, OrderStats, Ticket } from '@/lib/types';
 import { Icon } from '@/components/Icon';
+import { OrderNumber, orderLabel } from '@/components/OrderNumber';
 import { Alert, PageHeader, StatusBadge } from '@/components/ui';
 
 type OrdersResponse = { orders: Order[] };
@@ -43,7 +44,9 @@ function OrderRow({ order, now }: { order: Order; now: number }) {
   const remaining = new Date(order.confirmDeadline).getTime() - now;
   return (
     <li className="order-row">
-      <span className="order-row-id">#{order.id}</span>
+      <span className="order-row-id">
+        <OrderNumber number={order.orderNumber} id={order.id} />
+      </span>
       <span className="order-row-main">
         <strong>{order.customerName}</strong>
         <span className="muted small">{itemSummary(order)}</span>
@@ -53,7 +56,7 @@ function OrderRow({ order, now }: { order: Order; now: number }) {
       ) : remaining > 0 ? (
         <span className="order-row-time">{formatDuration(remaining)}</span>
       ) : (
-        <span className="badge badge-overdue">Late {formatDuration(-remaining)}</span>
+        <span className="badge badge-overdue">Late {formatElapsed(-remaining)}</span>
       )}
     </li>
   );
@@ -87,7 +90,9 @@ function TicketList({ status, empty }: { status: 'PENDING' | 'CONFIRMED'; empty:
         const remaining = new Date(t.order.confirmDeadline).getTime() - now;
         return (
           <li key={t.id} className="order-row">
-            <span className="order-row-id">#{t.order.id}</span>
+            <span className="order-row-id">
+              <OrderNumber number={t.order.orderNumber} id={t.order.id} />
+            </span>
             <span className="order-row-main">
               <strong>
                 {t.station.name} · {t.order.customerName}
@@ -99,7 +104,7 @@ function TicketList({ status, empty }: { status: 'PENDING' | 'CONFIRMED'; empty:
             ) : remaining > 0 ? (
               <span className="order-row-time">{formatDuration(remaining)}</span>
             ) : (
-              <span className="badge badge-overdue">Late {formatDuration(-remaining)}</span>
+              <span className="badge badge-overdue">Late {formatElapsed(-remaining)}</span>
             )}
           </li>
         );
@@ -151,7 +156,7 @@ function RecentOrders() {
           {data.orders.map((o) => (
             <tr key={o.id}>
               <td>
-                <strong>#{o.id}</strong>
+                <OrderNumber number={o.orderNumber} id={o.id} />
                 <div className="muted small">{formatTime(o.createdAt)}</div>
               </td>
               <td>{o.customerName}</td>
