@@ -113,7 +113,7 @@ function NewOrder() {
                   type="tel"
                   value={customer.customerPhone}
                   onChange={setField('customerPhone')}
-                  placeholder="+250 7XX XXX XXX"
+                  placeholder="+250788468790"
                 />
               </Field>
               <Field label="Delivery location" htmlFor="location" error={errors.location} className="span-2">
