@@ -2,10 +2,11 @@
 
 import { Children, type ReactNode } from 'react';
 import { useNow } from '@/lib/hooks';
-import { formatDuration, formatMoney, formatTime, timeAgo } from '@/lib/format';
+import { formatDuration, formatElapsed, formatMoney, formatTime, timeAgo } from '@/lib/format';
 import { TICKET_STATUS_LABELS } from '@/lib/constants';
 import { Icon } from './Icon';
 import { StatusBadge } from './ui';
+import { OrderNumber } from './OrderNumber';
 import type { Order } from '@/lib/types';
 
 function Countdown({ deadline, now }: { deadline: string; now: number }) {
@@ -21,7 +22,7 @@ function Countdown({ deadline, now }: { deadline: string; now: number }) {
   return (
     <span className="countdown countdown-late">
       <Icon name="alert" size={15} />
-      Late by {formatDuration(-remaining)}
+      Late by {formatElapsed(-remaining)}
     </span>
   );
 }
@@ -49,7 +50,7 @@ export function OrderCard({ order, children, showTimeline = false }: OrderCardPr
     <article className={`card order-card ${overdue ? 'is-overdue' : ''}`}>
       <header className="order-head">
         <div className="order-head-left">
-          <span className="order-number">#{order.id}</span>
+          <OrderNumber number={order.orderNumber} id={order.id} />
           <StatusBadge status={order.status} overdue={overdue} />
           {order.isDelayed && !overdue && <span className="badge badge-flag">Confirmed late</span>}
         </div>
