@@ -30,7 +30,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // every backend returns `permissions`.
 const LEGACY_MODULE_PERMISSIONS: Record<string, Permission[]> = {
   orders: ['orders.view', 'orders.create', 'orders.manage', 'deliveries.view'],
-  kitchen: ['kitchen.view', 'kitchen.prepare'],
+  kitchen: ['kitchen.view', 'kitchen.confirm', 'kitchen.ready'],
   delivery: ['deliveries.deliver'],
   menu: ['menu.view', 'menu.create', 'menu.update', 'menu.delete'],
   users: ['users.view', 'users.create', 'users.update'],
