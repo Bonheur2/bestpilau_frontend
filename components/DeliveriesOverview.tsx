@@ -9,6 +9,7 @@ import { formatMoney, formatSeconds, timeAgo } from '@/lib/format';
 import { DRIVER_STATUS_LABELS } from '@/lib/constants';
 import type { DeliveriesHistory, Driver, Order } from '@/lib/types';
 import { Alert, Loader, PageHeader, StatusBadge } from './ui';
+import { OrderNumber, orderLabel } from './OrderNumber';
 
 // Delivery dispatch view for Admin / Customer Care: every driver and every active delivery.
 
@@ -122,7 +123,7 @@ export function DeliveriesOverview() {
                 {readyNoDriver.map((o) => (
                   <tr key={o.id}>
                     <td>
-                      <strong>#{o.id}</strong>
+                      <OrderNumber number={o.orderNumber} id={o.id} />
                     </td>
                     <td>{o.customerName}</td>
                     <td className="cell-truncate">{o.location}</td>
@@ -186,7 +187,7 @@ export function DeliveriesOverview() {
                           {DRIVER_STATUS_LABELS[d.availabilityStatus]}
                         </span>
                       </td>
-                      <td>{mine.length ? mine.map((o) => `#${o.id}`).join(', ') : <span className="muted">—</span>}</td>
+                      <td>{mine.length ? mine.map((o) => orderLabel(o)).join(', ') : <span className="muted">—</span>}</td>
                       <td>{stats?.deliveries ?? 0}</td>
                       <td>{formatSeconds(stats?.avgDeliverySeconds)}</td>
                     </tr>
@@ -219,7 +220,7 @@ export function DeliveriesOverview() {
                 {withDriver.map((o) => (
                   <tr key={o.id}>
                     <td>
-                      <strong>#{o.id}</strong>
+                      <OrderNumber number={o.orderNumber} id={o.id} />
                     </td>
                     <td>
                       {o.customerName}
@@ -268,7 +269,7 @@ export function DeliveriesOverview() {
                 {today.data.entries.map((o) => (
                   <tr key={o.id}>
                     <td>
-                      <strong>#{o.id}</strong>
+                      <OrderNumber number={o.orderNumber} id={o.id} />
                     </td>
                     <td>{new Date(o.deliveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                     <td>{o.customerName}</td>
