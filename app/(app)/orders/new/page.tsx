@@ -7,6 +7,7 @@ import { useApi } from '@/lib/hooks';
 import { formatMoney } from '@/lib/format';
 import { orderFormSchema, zodFieldErrors } from '@/lib/schemas';
 import { Icon } from '@/components/Icon';
+import { orderLabel } from '@/components/OrderNumber';
 import { Alert, Empty, Field, Guard, Loader, PageHeader } from '@/components/ui';
 import type { Category, Driver, Order, Product } from '@/lib/types';
 
@@ -92,7 +93,7 @@ function NewOrder() {
 
       {created && (
         <Alert kind="success" onClose={() => setCreated(null)}>
-          Order #{created.id} created ({formatMoney(created.totalAmount)}).{' '}
+          Order <strong>{orderLabel(created)}</strong> created ({formatMoney(created.totalAmount)}).{' '}
           <Link href="/orders">View orders</Link>
         </Alert>
       )}
@@ -204,18 +205,6 @@ function NewOrder() {
             <span>Total</span>
             <span>{formatMoney(total)}</span>
           </div>
-
-          <Field label="Driver (optional)" htmlFor="driverId">
-            <select id="driverId" value={customer.driverId} onChange={setField('driverId')}>
-              <option value="">Assign later</option>
-              {availableDrivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
           <button className="btn btn-primary btn-block" disabled={submitting}>
             {submitting ? 'Sending…' : 'Send to kitchen'}
           </button>
