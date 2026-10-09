@@ -1,4 +1,8 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+// Accepts the server address with or without the /api suffix (and trailing slashes)
+export const API_URL = (() => {
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? 'https://bestpilau-backend.onrender.com/api').replace(/\/+$/, '');
+  return base.endsWith('/api') ? base : `${base}/api`;
+})();
 const TOKEN_KEY = 'bp_token';
 
 export const tokenStore = {
