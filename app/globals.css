@@ -821,35 +821,6 @@ a.stage:hover {
   gap: 16px;
   align-items: start;
 }
-.board {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  align-items: start;
-}
-.board-col {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  background: var(--neutral-soft);
-  border-radius: var(--radius);
-  padding: 14px;
-  min-height: 200px;
-}
-.board-col-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 4px;
-}
-.board-col-head .count {
-  background: var(--black);
-  color: var(--white);
-  border-radius: var(--radius-sm);
-  padding: 1px 10px;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
 .order-card {
   display: flex;
   flex-direction: column;
@@ -1285,9 +1256,6 @@ a.stage:hover {
   .main {
     padding: 20px 16px 40px;
   }
-  .board {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 700px) {
@@ -1363,42 +1331,6 @@ a.stage:hover {
 }
 .station-chip.is-late::before {
   background: var(--error);
-}
-.ticket {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.ticket-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.ticket-time {
-  margin-left: auto;
-}
-.ticket-items {
-  list-style: none;
-  margin: 0;
-  padding: 10px 0;
-  border-top: 1px solid var(--neutral);
-  border-bottom: 1px solid var(--neutral);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 1rem;
-  font-weight: 500;
-}
-.ticket-items .qty {
-  display: inline-block;
-  min-width: 32px;
-  font-weight: 700;
-}
-.ticket-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 .select-sm {
   padding: 5px 8px;
@@ -2291,4 +2223,282 @@ input:disabled {
 }
 .field.has-error .input-suffix {
   border-color: var(--error);
+}
+
+/* ---------- Order numbers ---------- */
+.order-no {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.order-no-date {
+  color: var(--text-muted);
+  font-size: 0.8em;
+  font-weight: 500;
+}
+.order-no strong {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+.order-no-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.05;
+}
+.order-no-stacked .order-no-date {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+.order-no-stacked strong {
+  font-size: 1.6rem;
+}
+
+
+/* ---------- Kitchen ---------- */
+.kitchen-items {
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.kitchen-items-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.kitchen-items-head h2 {
+  font-size: 0.95rem;
+}
+.item-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.item-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--neutral);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.item-chip:hover {
+  border-color: var(--black);
+}
+.item-chip:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.item-chip-qty {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.item-chip.active {
+  background: var(--black);
+  border-color: var(--black);
+  color: var(--white);
+}
+.item-chip-more {
+  color: var(--text-muted);
+  background: var(--neutral-soft);
+  border-color: transparent;
+}
+.kitchen-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.kitchen-bar .tabs {
+  flex: 1;
+  min-width: 260px;
+  margin-bottom: 0;
+}
+.kitchen-search {
+  margin: 0 0 6px;
+  width: 280px;
+}
+.kitchen-filter-note {
+  margin: 12px 0 0;
+}
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.kitchen-section {
+  margin-top: 22px;
+}
+.kitchen-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.kitchen-section-head h2 {
+  font-size: 1rem;
+}
+.kitchen-section-head .count {
+  background: var(--black);
+  color: var(--white);
+  border-radius: var(--radius-sm);
+  padding: 1px 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.kitchen-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+.kitchen-more .btn {
+  gap: 10px;
+}
+
+/* Ticket grid and cards */
+.kt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.kt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--white);
+  border: 1px solid var(--neutral);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.kt-late {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px var(--error);
+}
+.kt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.kt-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--neutral);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.kt-timer-warn {
+  color: var(--error-strong);
+  border-color: #f5c2c0;
+  background: var(--error-soft);
+}
+.kt-timer-late {
+  color: var(--white);
+  border-color: var(--error);
+  background: var(--error);
+}
+.kt-timer-cooking {
+  color: #1565c0;
+  border-color: #bbdefb;
+  background: #e3f2fd;
+}
+.kt-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.kt-customer {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kt-placed {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.kt-items {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--neutral);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.kt-qty {
+  display: inline-block;
+  min-width: 34px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+.kt-also {
+  margin: 0;
+  gap: 4px;
+}
+.kt-also .station-chip {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  gap: 4px;
+}
+.kt-actions .btn {
+  min-height: 44px;
+}
+.kt-actions .muted {
+  display: block;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  /* "To make" becomes one swipeable row so the tickets start right under the header */
+  .kitchen-items {
+    padding: 10px 12px;
+  }
+  .kitchen-items-head .muted {
+    display: none;
+  }
+  .kitchen-items-head {
+    margin-bottom: 8px;
+  }
+  .item-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .item-chip {
+    flex-shrink: 0;
+  }
+  .kitchen-search {
+    width: 100%;
+  }
+  .kitchen-bar {
+    gap: 8px;
+  }
 }
