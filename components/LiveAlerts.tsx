@@ -29,7 +29,7 @@ function useNewIds(ids: number[] | undefined, onNew: (ids: number[]) => void) {
 
 const sound = (kind: SoundKind) => () => playSound(kind);
 
-// Kitchen: chime for each new ticket at my station(s); urgent beep when one goes overdue.
+// Whoever confirms: chime for each new ticket at my station(s); urgent beep when one goes overdue.
 function KitchenAlerts() {
   const { data } = useApi<{ tickets: Ticket[] }>('/tickets?status=PENDING', { interval: 15_000, live: ['tickets'] });
   const tickets = data?.tickets;
@@ -38,6 +38,14 @@ function KitchenAlerts() {
   const now = useNow(1000);
   const overdueIds = tickets?.filter((t) => new Date(t.order.confirmDeadline).getTime() <= now).map((t) => t.id);
   useNewIds(overdueIds, sound('alert'));
+  return null;
+}
+
+// Whoever marks tickets ready, when someone else does the confirming: chime when a ticket lands in
+// their queue. (People who also confirm already heard it when the ticket arrived.)
+function CookAlerts() {
+  const { data } = useApi<{ tickets: Ticket[] }>('/tickets?status=CONFIRMED', { interval: 15_000, live: ['tickets'] });
+  useNewIds(data?.tickets.map((t) => t.id), sound('new'));
   return null;
 }
 
@@ -65,7 +73,8 @@ export function LiveAlerts() {
   const { user, can } = useSessionUser();
   return (
     <>
-      {can('kitchen.view') && <KitchenAlerts />}
+      {can('kitchen.confirm') && <KitchenAlerts />}
+      {can('kitchen.ready') && !can('kitchen.confirm') && <CookAlerts />}
       {can('orders.view') && <CareAlerts />}
       {user.driverId && <DriverAlerts />}
     </>
@@ -80,7 +89,7 @@ export function LiveControls() {
   const status = useLiveStatus();
   const enabled = useSyncExternalStore(subscribeSound, soundEnabled, () => true);
   const locked = useSyncExternalStore(subscribeSound, audioLocked, () => true);
-  const hasAlerts = can('kitchen.view') || can('orders.view') || can('deliveries.deliver');
+  const hasAlerts = can('kitchen.confirm') || can('kitchen.ready') || can('orders.view') || can('deliveries.deliver');
 
   const label = status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Reconnecting…';
 
