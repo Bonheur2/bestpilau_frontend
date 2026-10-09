@@ -11,6 +11,7 @@ import { Icon } from '@/components/Icon';
 type Access = { isSuperAdmin: boolean; permissions: PresenceUser['permissions'] };
 // Whose screens play alerts (kitchen tickets, overdue orders, deliveries); for anyone else sound doesn't matter
 const takesOrders = (a: Access) => !a.isSuperAdmin && a.permissions.includes('orders.view');
+const confirmsTickets = (a: Access) => isKitchenStaff(a) && a.permissions.includes('kitchen.confirm');
 const getsAlerts = (a: Access) => isKitchenStaff(a) || takesOrders(a) || isDriverStaff(a);
 
 const SOUND_LABEL: Record<SoundState, string> = {
@@ -36,7 +37,8 @@ type Coverage = { name: string; online: number; hearing: number; idle: boolean }
 
 // Is anyone who would receive this station's tickets online with sound on?
 function stationCoverage(stations: Station[], online: PresenceUser[]): Coverage[] {
-  const kitchen = online.filter((u) => isKitchenStaff(u));
+  // New tickets are announced to the people who confirm them
+  const kitchen = online.filter((u) => confirmsTickets(u));
   return stations
     .filter((s) => s.isActive)
     .map((s) => {
