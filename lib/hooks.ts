@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api, errorMessage } from './api';
 import { useLiveStatus, useLiveTopics, type LiveTopic } from './realtime';
 import type { AppSettings } from './types';
@@ -23,7 +24,6 @@ interface UseApiOptions {
   live?: LiveTopic[];
 }
 
-// Fetches `path`, reloading on live updates and/or on an interval.
 /** One page of an already-loaded list. The page is clamped, so a list that shrinks never shows an empty page. */
 export function paginate<T>(items: T[], page: number, size: number) {
   const pages = Math.max(1, Math.ceil(items.length / size));
@@ -39,38 +39,34 @@ export function usePageState(resetKey: string) {
   return [page, setPage] as const;
 }
 
+// Fetches `path` through React Query: a path seen before shows its last data straight away while a fresh
+// copy loads, identical requests are shared, and it reloads on live updates and/or on an interval.
 export function useApi<T>(path: string, { interval, enabled = true, live }: UseApiOptions = {}) {
-  const [state, setState] = useState<ApiState<T>>({ data: null, error: null, loading: enabled });
-  const pathRef = useRef(path);
-  pathRef.current = path;
-
-  const load = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const data = await api<T>(path);
-      if (pathRef.current === path) setState({ data, error: null, loading: false });
-    } catch (error) {
-      if (pathRef.current === path) setState((s) => ({ ...s, error: error as Error, loading: false }));
-    }
-  }, [path, enabled]);
-
   const liveStatus = useLiveStatus();
   const effectiveInterval =
     interval && live && liveStatus === 'live' ? Math.max(interval, LIVE_SAFETY_INTERVAL) : interval;
-  useLiveTopics(enabled ? live : undefined, load);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const query = useQuery<T, Error>({
+    queryKey: [path],
+    queryFn: () => api<T>(path),
+    enabled,
+    refetchInterval: effectiveInterval || false,
+    // Switching filters keeps the previous list on screen until the new one arrives
+    placeholderData: keepPreviousData,
+  });
 
-  // Separate from the initial load, so switching poll speed (live ↔ offline) doesn't refetch
-  useEffect(() => {
-    if (!effectiveInterval || !enabled) return;
-    const timer = setInterval(load, effectiveInterval);
-    return () => clearInterval(timer);
-  }, [load, effectiveInterval, enabled]);
+  const { refetch } = query;
+  const reload = useCallback(async () => {
+    if (enabled) await refetch();
+  }, [enabled, refetch]);
+  useLiveTopics(enabled ? live : undefined, reload);
 
-  return { ...state, reload: load };
+  return {
+    data: query.data ?? null,
+    error: query.error,
+    loading: enabled && query.isPending,
+    reload,
+  } satisfies ApiState<T> & { reload: () => Promise<void> };
 }
 
 // Runs one async action at a time and captures its error message.

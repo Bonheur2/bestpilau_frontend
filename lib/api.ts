@@ -1,4 +1,5 @@
 import { signProof, syncClock } from './device';
+import { queryClient } from './queryClient';
 
 // Accepts the server address with or without the /api suffix (and trailing slashes)
 export const API_URL = (() => {
@@ -16,11 +17,13 @@ export const tokenStore = {
     }
   },
   set(token: string) {
+    queryClient.clear();
     try {
       localStorage.setItem(TOKEN_KEY, token);
     } catch {}
   },
   clear() {
+    queryClient.clear();
     try {
       localStorage.removeItem(TOKEN_KEY);
     } catch {}

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Montserrat, Poppins } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth';
+import { QueryProvider } from '@/components/QueryProvider';
+import { API_URL } from '@/lib/api';
 import './globals.css';
 
 const poppins = Poppins({
@@ -26,8 +28,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${poppins.variable} ${montserrat.variable}`}>
+      <head>
+        <link rel="preconnect" href={new URL(API_URL).origin} />
+      </head>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <QueryProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );
