@@ -3,13 +3,15 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { api, apiFieldErrors, errorMessage } from '@/lib/api';
 import { isDriverStaff, isKitchenStaff, useSessionUser } from '@/lib/auth';
-import { useApi } from '@/lib/hooks';
+import { paginate, useApi, usePageState } from '@/lib/hooks';
 import { DRIVER_STATUS_LABELS } from '@/lib/constants';
 import { userFormSchema, zodFieldErrors } from '@/lib/schemas';
 import type { RoleInfo, RolesResponse, StaffUser, Station } from '@/lib/types';
-import { Alert, Field, Loader } from '@/components/ui';
+import { Alert, Field, Loader, Pagination } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Modal, Switch } from '@/components/Modal';
+
+const STAFF_PER_PAGE = 15;
 
 export function UsersTab() {
   const { user: me, can } = useSessionUser();
@@ -20,6 +22,7 @@ export function UsersTab() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<StaffUser | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [page, setPage] = usePageState(search.trim().toLowerCase());
 
   const roleList = useMemo(() => roles.data?.roles ?? [], [roles.data]);
   // Only an Admin can hand out the Admin role
@@ -34,6 +37,8 @@ export function UsersTab() {
   const users = data.users.filter(
     (u) => !query || u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query) || u.role.name.toLowerCase().includes(query),
   );
+
+  const shown = paginate(users, page, STAFF_PER_PAGE);
 
   const roleText = (u: StaffUser) => {
     const role = roleById.get(u.role.id);
@@ -84,7 +89,7 @@ export function UsersTab() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {shown.items.map((u) => {
                 const isMe = u.id === me.id;
                 const editable = can('users.update') && (!u.role.isSuperAdmin || me.isSuperAdmin);
                 return (
@@ -118,6 +123,7 @@ export function UsersTab() {
             </tbody>
           </table>
         </div>
+        <Pagination page={shown.page} total={shown.total} size={STAFF_PER_PAGE} onPage={setPage} />
       </section>
 
       {adding && (

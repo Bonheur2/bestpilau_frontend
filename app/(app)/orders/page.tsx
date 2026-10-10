@@ -4,22 +4,31 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { useAction, useApi } from '@/lib/hooks';
+import { useAction, useApi, usePageState } from '@/lib/hooks';
 import { useSessionUser } from '@/lib/auth';
 import { DRIVER_STATUS_LABELS } from '@/lib/constants';
 import { Icon } from '@/components/Icon';
 import { OrderCard } from '@/components/OrderCard';
-import { Alert, Empty, Guard, Loader, PageHeader } from '@/components/ui';
+import { Alert, Empty, Guard, Loader, PageHeader, Pagination } from '@/components/ui';
 import type { Driver, Order } from '@/lib/types';
 
+const PAGE_SIZE = 20;
+
+// Midnight on this device (the shop's day), as an ISO time
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+// Only today's orders that are not delivered yet. Delivered orders leave this page by themselves; they are
+// in History, along with earlier days.
 const FILTERS = [
-  { key: 'all', label: 'All', query: 'limit=100' },
   { key: 'active', label: 'Active', query: 'status=PENDING,CONFIRMED,COMPLETED' },
   { key: 'overdue', label: 'Overdue', query: 'overdue=true', danger: true },
   { key: 'pending', label: 'Pending', query: 'status=PENDING' },
   { key: 'confirmed', label: 'Confirmed', query: 'status=CONFIRMED' },
   { key: 'completed', label: 'Ready', query: 'status=COMPLETED' },
-  { key: 'delivered', label: 'Delivered', query: 'status=DELIVERED&limit=50' },
 ];
 
 export default function OrdersPage() {
@@ -62,7 +71,7 @@ function DriverSelect({ order, drivers, disabled, onAssign }: DriverSelectProps)
 function Orders() {
   const params = useSearchParams();
   const router = useRouter();
-  const filter = FILTERS.find((f) => f.key === params.get('filter')) ?? FILTERS[0];
+  const filter = FILTERS.find((f) => f.key === params.get('filter')) ?? FILTERS[0]; // opens on Active
 
   // Search by order number (0042 or ORD-1009-0042), customer name or phone
   const [search, setSearch] = useState('');
@@ -72,11 +81,21 @@ function Orders() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, error, loading, reload } = useApi<{ orders: Order[] }>(
-    `/orders?${filter.query}${searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : ''}`,
-    { interval: 10_000, live: ['orders'] },
-  );
-  const overdue = useApi<{ orders: Order[] }>('/orders?overdue=true', { interval: 10_000, live: ['orders'] });
+  const [page, setPage] = usePageState(`${filter.key}|${searchTerm}`);
+  const queryString = [
+    filter.query,
+    `since=${encodeURIComponent(startOfToday())}`,
+    searchTerm && `q=${encodeURIComponent(searchTerm)}`,
+    `limit=${PAGE_SIZE}`,
+    `page=${page}`,
+  ]
+    .filter(Boolean)
+    .join('&');
+  const { data, error, loading, reload } = useApi<{ orders: Order[]; total: number }>(`/orders?${queryString}`, {
+    interval: 10_000,
+    live: ['orders'],
+  });
+  const overdue = useApi<{ orders: Order[]; total: number }>(`/orders?overdue=true&since=${encodeURIComponent(startOfToday())}`, { interval: 10_000, live: ['orders'] });
   const { can } = useSessionUser();
   // Viewers see orders; only managers recheck them and assign drivers
   const canManage = can('orders.manage');
@@ -84,7 +103,7 @@ function Orders() {
   const { busy, error: actionError, setError, run } = useAction();
 
   const driverList = drivers.data?.drivers ?? [];
-  const overdueCount = overdue.data?.orders.length ?? 0;
+  const overdueCount = overdue.data?.total ?? 0;
 
   const refreshAll = () => Promise.all([reload(), overdue.reload(), drivers.reload()]);
 
@@ -165,6 +184,7 @@ function Orders() {
       {loading ? (
         <Loader />
       ) : data?.orders.length ? (
+        <>
         <div className="order-grid">
           {data.orders.map((order) => (
             <OrderCard key={order.id} order={order} showTimeline>
@@ -188,8 +208,12 @@ function Orders() {
             </OrderCard>
           ))}
         </div>
+        <Pagination page={page} total={data.total} size={PAGE_SIZE} onPage={setPage} />
+        </>
       ) : (
-        <Empty title={searchTerm ? 'No orders match your search' : 'No orders'} />
+        <Empty title={searchTerm ? 'No orders match your search' : 'No open orders today'}>
+          Delivered orders are in <Link href="/history">History</Link>.
+        </Empty>
       )}
     </>
   );

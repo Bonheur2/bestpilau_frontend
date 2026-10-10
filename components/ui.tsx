@@ -6,6 +6,66 @@ import { STATUS_LABELS } from '@/lib/constants';
 import type { OrderStatus, Permission } from '@/lib/types';
 import { Icon } from './Icon';
 
+interface PaginationProps {
+  page: number;
+  pages?: number;
+  total: number;
+  size: number;
+  onPage: (page: number) => void;
+}
+
+// Page numbers to show: first, last, and a window around the current page
+function pageWindow(page: number, pages: number): (number | 'gap')[] {
+  const wanted = new Set([1, pages, page - 1, page, page + 1]);
+  const list = [...wanted].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+  const out: (number | 'gap')[] = [];
+  list.forEach((n, i) => {
+    if (i > 0 && n - list[i - 1] > 1) out.push('gap');
+    out.push(n);
+  });
+  return out;
+}
+
+export function Pagination({ page, pages: pageCount, total, size, onPage }: PaginationProps) {
+  const pages = pageCount ?? Math.max(1, Math.ceil(total / size));
+  if (total <= size) return null;
+  const from = (page - 1) * size + 1;
+  const to = Math.min(page * size, total);
+  return (
+    <nav className="pagination" aria-label="Pages">
+      <span className="muted small pagination-info">
+        {from}–{to} of {total}
+      </span>
+      <div className="pagination-pages">
+        <button type="button" className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          Previous
+        </button>
+        {pageWindow(page, pages).map((n, i) =>
+          n === 'gap' ? (
+            <span key={`gap${i}`} className="pagination-gap" aria-hidden="true">
+              …
+            </span>
+          ) : (
+            <button
+              key={n}
+              type="button"
+              className={`pagination-page ${n === page ? 'active' : ''}`}
+              aria-current={n === page ? 'page' : undefined}
+              aria-label={`Page ${n}`}
+              onClick={() => onPage(n)}
+            >
+              {n}
+            </button>
+          ),
+        )}
+        <button type="button" className="btn btn-ghost btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+          Next
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
     <header className="page-header">

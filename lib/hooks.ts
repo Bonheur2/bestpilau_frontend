@@ -24,6 +24,21 @@ interface UseApiOptions {
 }
 
 // Fetches `path`, reloading on live updates and/or on an interval.
+/** One page of an already-loaded list. The page is clamped, so a list that shrinks never shows an empty page. */
+export function paginate<T>(items: T[], page: number, size: number) {
+  const pages = Math.max(1, Math.ceil(items.length / size));
+  const current = Math.min(Math.max(page, 1), pages);
+  return { items: items.slice((current - 1) * size, current * size), page: current, pages, total: items.length, size };
+}
+
+/** Page number that goes back to 1 whenever `resetKey` (a filter or search) changes. */
+export function usePageState(resetKey: string) {
+  const [state, setState] = useState({ key: resetKey, page: 1 });
+  const page = state.key === resetKey ? state.page : 1;
+  const setPage = useCallback((next: number) => setState({ key: resetKey, page: next }), [resetKey]);
+  return [page, setPage] as const;
+}
+
 export function useApi<T>(path: string, { interval, enabled = true, live }: UseApiOptions = {}) {
   const [state, setState] = useState<ApiState<T>>({ data: null, error: null, loading: enabled });
   const pathRef = useRef(path);

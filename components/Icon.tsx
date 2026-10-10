@@ -79,6 +79,7 @@ const paths = {
   ),
   refresh: <path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" />,
   check: <path d="M20 6 9 17l-5-5" />,
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   x: <path d="M18 6 6 18M6 6l12 12" />,
   user: (
     <>

@@ -3,11 +3,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { api, apiFieldErrors } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { isAllOrId, useAction, useApi, useQueryState } from '@/lib/hooks';
+import { isAllOrId, paginate, useAction, useApi, usePageState, useQueryState } from '@/lib/hooks';
 import { formatMoney } from '@/lib/format';
 import { productFormSchema, zodFieldErrors } from '@/lib/schemas';
 import type { Category, Product, Station } from '@/lib/types';
-import { Alert, Field, Loader } from '@/components/ui';
+import { Alert, Field, Loader, Pagination } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Modal, Switch } from '@/components/Modal';
 
@@ -15,6 +15,8 @@ import { Modal, Switch } from '@/components/Modal';
 const toStationId = (value: string) => (value ? Number(value) : null);
 
 type Selection = number | 'all';
+
+const ITEMS_PER_PAGE = 20;
 
 export function MenuTab() {
   const categories = useApi<{ categories: Category[] }>('/menu/categories');
@@ -30,6 +32,7 @@ export function MenuTab() {
   const selected: Selection = categoryParam === 'all' ? 'all' : Number(categoryParam);
   const setSelected = (value: Selection) => setCategoryParam(String(value));
   const [search, setSearch] = useState('');
+  const [page, setPage] = usePageState(`${categoryParam}|${search.trim().toLowerCase()}`);
   const [itemDialog, setItemDialog] = useState<Product | 'new' | null>(null);
   const [categoryDialog, setCategoryDialog] = useState<Category | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
@@ -44,6 +47,8 @@ export function MenuTab() {
   const visible = allProducts.filter(
     (p) => (selected === 'all' || p.categoryId === selected) && (!query || p.name.toLowerCase().includes(query)),
   );
+
+  const shown = paginate(visible, page, ITEMS_PER_PAGE);
 
   const reloadAll = () => Promise.all([categories.reload(), products.reload()]);
 
@@ -169,7 +174,7 @@ export function MenuTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((p) => (
+                  {shown.items.map((p) => (
                     <tr key={p.id} className={p.isAvailable ? '' : 'is-unavailable'}>
                       <td>
                         <strong>{p.name}</strong>
@@ -220,6 +225,7 @@ export function MenuTab() {
               </table>
             </div>
           )}
+          <Pagination page={shown.page} total={shown.total} size={ITEMS_PER_PAGE} onPage={setPage} />
         </section>
       </div>
 

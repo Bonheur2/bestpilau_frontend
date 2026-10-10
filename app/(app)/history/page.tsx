@@ -1,11 +1,11 @@
 'use client';
 
 import { Suspense, useMemo, type ReactNode } from 'react';
-import { useApi, useQueryState } from '@/lib/hooks';
+import { paginate, useApi, usePageState, useQueryState } from '@/lib/hooks';
 import { formatDateTime, formatDay, formatMoney, formatSeconds, formatTime } from '@/lib/format';
 import { TICKET_STATUS_LABELS } from '@/lib/constants';
 import type { DeliveriesHistory, HistoryResponse, HistoryView, KitchenHistory, OrdersHistory } from '@/lib/types';
-import { Alert, Guard, Loader, PageHeader, StatusBadge } from '@/components/ui';
+import { Alert, Guard, Loader, PageHeader, Pagination, StatusBadge } from '@/components/ui';
 import { OrderNumber, orderLabel } from '@/components/OrderNumber';
 
 type RangeKey = 'today' | 'yesterday' | 'week' | 'month';
@@ -177,12 +177,16 @@ function Table({ head, children, empty }: { head: string[]; children: ReactNode;
   );
 }
 
+const ENTRIES_PER_PAGE = 25;
+
 const newestFirst = <T extends { date: string }>(days: T[]) => [...days].reverse();
 
 // ---- Orders (Customer Care / Admin) ----
 
 function OrdersSection({ data, multiDay }: { data: OrdersHistory; multiDay: boolean }) {
   const { totals, days, entries } = data;
+  const [entryPage, setEntryPage] = usePageState(String(entries.length));
+  const shown = paginate(entries, entryPage, ENTRIES_PER_PAGE);
   const max = Math.max(...days.map((d) => d.orders));
   return (
     <>
@@ -213,7 +217,7 @@ function OrdersSection({ data, multiDay }: { data: OrdersHistory; multiDay: bool
 
       <Section title={`Orders (${entries.length})`}>
         <Table head={['Order', 'Time', 'Customer', 'Location', 'Driver', 'Total', 'Confirmed in', 'Status']} empty={!entries.length}>
-          {entries.map((o) => (
+          {shown.items.map((o) => (
             <tr key={o.id}>
               <td>
                 <OrderNumber number={o.orderNumber} id={o.id} />
@@ -230,6 +234,7 @@ function OrdersSection({ data, multiDay }: { data: OrdersHistory; multiDay: bool
             </tr>
           ))}
         </Table>
+        <Pagination page={shown.page} total={shown.total} size={ENTRIES_PER_PAGE} onPage={setEntryPage} />
       </Section>
     </>
   );
@@ -239,6 +244,8 @@ function OrdersSection({ data, multiDay }: { data: OrdersHistory; multiDay: bool
 
 function KitchenSection({ data, multiDay }: { data: KitchenHistory; multiDay: boolean }) {
   const { totals, days, breakdown = [], entries } = data;
+  const [entryPage, setEntryPage] = usePageState(String(entries.length));
+  const shown = paginate(entries, entryPage, ENTRIES_PER_PAGE);
   const max = Math.max(...days.map((d) => d.tickets));
   return (
     <>
@@ -288,7 +295,7 @@ function KitchenSection({ data, multiDay }: { data: KitchenHistory; multiDay: bo
 
       <Section title={`Tickets (${entries.length})`}>
         <Table head={['Order', 'Time', 'Station', 'Items', 'Confirmed in', 'Prep time', 'Status']} empty={!entries.length}>
-          {entries.map((t) => (
+          {shown.items.map((t) => (
             <tr key={t.id}>
               <td>
                 <OrderNumber number={t.orderNumber} id={t.orderId} />
@@ -303,6 +310,7 @@ function KitchenSection({ data, multiDay }: { data: KitchenHistory; multiDay: bo
             </tr>
           ))}
         </Table>
+        <Pagination page={shown.page} total={shown.total} size={ENTRIES_PER_PAGE} onPage={setEntryPage} />
       </Section>
     </>
   );
@@ -312,6 +320,8 @@ function KitchenSection({ data, multiDay }: { data: KitchenHistory; multiDay: bo
 
 function DeliveriesSection({ data, multiDay }: { data: DeliveriesHistory; multiDay: boolean }) {
   const { totals, days, breakdown = [], entries } = data;
+  const [entryPage, setEntryPage] = usePageState(String(entries.length));
+  const shown = paginate(entries, entryPage, ENTRIES_PER_PAGE);
   const max = Math.max(...days.map((d) => d.deliveries));
   return (
     <>
@@ -355,7 +365,7 @@ function DeliveriesSection({ data, multiDay }: { data: DeliveriesHistory; multiD
 
       <Section title={`Deliveries (${entries.length})`}>
         <Table head={['Order', 'Delivered', 'Customer', 'Location', 'Driver', 'Value', 'Ready → delivered']} empty={!entries.length}>
-          {entries.map((o) => (
+          {shown.items.map((o) => (
             <tr key={o.id}>
               <td>
                 <OrderNumber number={o.orderNumber} id={o.id} />
@@ -369,6 +379,7 @@ function DeliveriesSection({ data, multiDay }: { data: DeliveriesHistory; multiD
             </tr>
           ))}
         </Table>
+        <Pagination page={shown.page} total={shown.total} size={ENTRIES_PER_PAGE} onPage={setEntryPage} />
       </Section>
     </>
   );

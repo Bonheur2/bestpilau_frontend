@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { Icon } from '@/components/Icon';
 import { Logo } from '@/components/Logo';
 import { SidebarNav } from '@/components/SidebarNav';
 import { Alert, FullScreenLoader } from '@/components/ui';
@@ -14,6 +15,22 @@ import { RealtimeProvider } from '@/lib/realtime';
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, error, refresh } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  // The sidebar is a slide-in drawer on phones
+  const [navOpen, setNavOpen] = useState(false);
+
+  // Close after navigating, and on Escape; keep the page behind from scrolling while open
+  useEffect(() => setNavOpen(false), [pathname]);
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setNavOpen(false);
+    document.addEventListener('keydown', onKey);
+    document.body.classList.add('nav-open');
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.classList.remove('nav-open');
+    };
+  }, [navOpen]);
 
   useEffect(() => {
     if (!loading && !user && !error) router.replace('/login');
@@ -57,7 +74,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <RealtimeProvider>
     <LiveAlerts />
     <div className="shell">
-      <aside className="sidebar">
+      {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} aria-hidden="true" />}
+      <aside id="main-nav" className={`sidebar ${navOpen ? 'open' : ''}`}>
+        <button type="button" className="nav-close" onClick={() => setNavOpen(false)} aria-label="Close menu">
+          <Icon name="x" size={20} />
+        </button>
         <Link href="/dashboard" className="sidebar-logo">
           <Logo size={104} />
         </Link>
@@ -65,6 +86,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
       <div className="content">
         <header className="topbar">
+          <div className="topbar-brand">
+            <button
+              type="button"
+              className="nav-toggle"
+              onClick={() => setNavOpen(true)}
+              aria-label="Open menu"
+              aria-expanded={navOpen}
+              aria-controls="main-nav"
+            >
+              <Icon name="menu" size={22} />
+            </button>
+            <Link href="/dashboard" aria-label="Best Pilau home">
+              <Logo size={44} />
+            </Link>
+          </div>
           <LiveControls />
           <UserMenu />
         </header>
