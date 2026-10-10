@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { API_URL, tokenStore } from './api';
 import { useAuth } from './auth';
 import { audioLocked, onSoundChange, soundEnabled } from './sound';
+import { signProof } from './device';
 
 // Live updates from the API over WebSocket. Messages are only "something changed"
 // signals; screens reload the affected data through the REST API.
@@ -55,7 +56,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       if (!token || stopped) return;
       socket = new WebSocket(WS_URL);
 
-      socket.onopen = () => socket?.send(JSON.stringify({ type: 'auth', token }));
+      socket.onopen = async () => {
+        const proof = await signProof(token);
+        socket?.send(JSON.stringify({ type: 'auth', token, ...(proof && { proof }) }));
+      };
       authed = false;
       reportedSound = null;
       socket.onmessage = (event) => {

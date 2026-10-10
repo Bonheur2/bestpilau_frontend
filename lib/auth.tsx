@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError, tokenStore } from './api';
+import { createDeviceKey, deleteDeviceKey } from './device';
 import type { Permission, SessionUser } from './types';
 
 interface AuthContextValue {
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const endSession = useCallback((reason?: string) => {
     if (rotating.current) return;
     tokenStore.clear();
+    void deleteDeviceKey();
     setUser(null);
     if (isWorthShowing(reason)) setNotice(reason ?? null);
   }, []);
@@ -104,10 +106,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh, endSession]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { token, user } = await api<{ token: string; user: SessionUser }>('/auth/login', {
-      method: 'POST',
-      body: { email, password },
-    });
+    // This browser's signing key; the server keeps the public half so a copied token cannot be used
+    const devicePublicKey = await createDeviceKey();
+    let result: { token: string; user: SessionUser };
+    try {
+      result = await api<{ token: string; user: SessionUser }>('/auth/login', {
+        method: 'POST',
+        body: { email, password, ...(devicePublicKey && { devicePublicKey }) },
+      });
+    } catch (err) {
+      await deleteDeviceKey();
+      throw err;
+    }
+    const { token, user } = result;
     tokenStore.set(token);
     setUser(normalizeUser(user));
     setError(null);
@@ -116,6 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // End the session on the server too, so the token is dead even if someone copied it
+    if (tokenStore.get()) {
+      api('/auth/logout', { method: 'POST' })
+        .catch(() => {})
+        .finally(() => void deleteDeviceKey());
+    }
     tokenStore.clear();
     setUser(null);
     setNotice(null);

@@ -6,7 +6,7 @@ import { isKitchenStaff, roleLabel, useSessionUser } from '@/lib/auth';
 import { useApi } from '@/lib/hooks';
 import { initials } from '@/lib/format';
 import { passwordSchema, profileSchema, zodFieldErrors } from '@/lib/schemas';
-import type { Profile } from '@/lib/types';
+import type { Profile, SessionEndReason, SessionEntry } from '@/lib/types';
 import { Icon } from '@/components/Icon';
 import { Alert, Field, Loader } from '@/components/ui';
 
@@ -292,50 +292,130 @@ function PasswordSection({ profile, onChanged }: { profile: Profile; onChanged: 
 }
 
 // Ends every other session (including copies of this device's token); this device continues.
-function SessionsSection({ profile, onChanged }: { profile: Profile; onChanged: () => void }) {
+const END_LABELS: Record<SessionEndReason, string> = {
+  logout: 'Signed out',
+  password_changed: 'Password changed',
+  signed_out: 'Signed out from another device',
+  signed_out_by_admin: 'Signed out by an administrator',
+  token_reuse: 'Login copied to another device',
+  device_mismatch: 'Used from a different device',
+  deactivated: 'Account deactivated',
+  replaced: 'Replaced by newer sign-ins',
+  expired: 'Expired',
+};
+
+const SUSPICIOUS: SessionEndReason[] = ['token_reuse', 'device_mismatch'];
+
+const formatDateTime = (date: string) =>
+  new Date(date).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+function SessionsSection({ onChanged }: { profile: Profile; onChanged: () => void }) {
   const { rotateSession } = useSessionUser();
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
+  const { data, error: loadError, reload } = useApi<{ sessions: SessionEntry[] }>('/auth/me/sessions');
+  const [busy, setBusy] = useState<number | 'all' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const sessions = data?.sessions ?? [];
+  const active = sessions.filter((entry) => entry.status);
+  const ended = sessions.filter((entry) => !entry.status).slice(0, 8);
+
   async function signOutOthers() {
-    setBusy(true);
+    setBusy('all');
     setError(null);
     try {
       await rotateSession(() => api<{ token: string; user: Profile }>('/auth/me/sign-out-others', { method: 'POST' }));
-      setDone(true);
+      reload();
       onChanged();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
-  const last = formatDate(profile.sessionsRevokedAt);
+  async function signOut(id: number) {
+    setBusy(id);
+    setError(null);
+    try {
+      await api(`/auth/me/sessions/${id}`, { method: 'DELETE' });
+      reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <Section
       title="Sessions"
-      description="Signed in somewhere you shouldn't be, or think someone copied your login? End every other session."
+      description="Where you're signed in. If someone copies your login to another device, that session is ended and you are signed out too."
       footer={
         <>
-          <span className="muted small settings-footer-note">{last ? `Last used ${last}` : 'Never used'}</span>
-          <button type="button" className="btn btn-dark" onClick={signOutOthers} disabled={busy}>
-            <Icon name="logout" size={15} /> {busy ? 'Signing out…' : 'Sign out of all other devices'}
+          <span className="muted small settings-footer-note">
+            {active.length} active {active.length === 1 ? 'session' : 'sessions'}
+          </span>
+          <button type="button" className="btn btn-dark" onClick={signOutOthers} disabled={busy !== null || active.length < 2}>
+            <Icon name="logout" size={15} /> {busy === 'all' ? 'Signing out…' : 'Sign out of all other devices'}
           </button>
         </>
       }
     >
-      {done ? (
-        <Alert kind="success">Every other device was signed out. You're still signed in here.</Alert>
-      ) : (
-        <p className="muted small" style={{ margin: 0 }}>
-          Every phone, tablet or browser signed in as you, other than this one, is signed out straight away and has to sign in
-          again. Your password stays the same.
-        </p>
+      {!data && !loadError && <Loader />}
+      <Alert>{loadError?.message ?? error}</Alert>
+      {active.length > 0 && (
+        <ul className="session-list">
+          {active.map((entry) => (
+            <li key={entry.id} className="session-item">
+              <div className="session-main">
+                <strong>
+                  {entry.deviceName}
+                  {entry.current && <span className="badge session-badge-current">This device</span>}
+                </strong>
+                <span className="muted small">
+                  {entry.ip ?? 'Unknown address'} · signed in {formatDateTime(entry.createdAt)} · last active{' '}
+                  {formatDateTime(entry.lastSeenAt)}
+                </span>
+                <span className="muted small">
+                  {entry.protectedByDeviceKey ? 'Locked to this browser' : 'Basic protection (browser has no device key)'}
+                </span>
+              </div>
+              {!entry.current && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => signOut(entry.id)} disabled={busy !== null}>
+                  {busy === entry.id ? 'Signing out…' : 'Sign out'}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
-      <Alert>{error}</Alert>
+      {ended.length > 0 && (
+        <>
+          <h3 className="session-subtitle">Recent activity</h3>
+          <ul className="session-list">
+            {ended.map((entry) => {
+              const suspicious = entry.endReason !== null && SUSPICIOUS.includes(entry.endReason);
+              return (
+                <li key={entry.id} className={`session-item session-ended${suspicious ? ' session-alert' : ''}`}>
+                  <div className="session-main">
+                    <strong>{entry.deviceName}</strong>
+                    <span className="small">
+                      {entry.endReason ? END_LABELS[entry.endReason] : 'Ended'}
+                      {entry.endedAt && ` · ${formatDateTime(entry.endedAt)}`}
+                    </span>
+                    {suspicious && entry.endedFromDevice && (
+                      <span className="small">
+                        Attempted from {entry.endedFromDevice}
+                        {entry.endedFromIp && ` (${entry.endedFromIp})`}. If this wasn't you, change your password.
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </Section>
   );
 }

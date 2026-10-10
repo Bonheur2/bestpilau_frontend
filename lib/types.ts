@@ -319,3 +319,31 @@ export type DeliveriesHistory = HistoryBase<
 > & { view: 'deliveries' };
 
 export type HistoryResponse = OrdersHistory | KitchenHistory | DeliveriesHistory;
+
+// ---- Sessions (GET /auth/me/sessions) ----
+export type SessionEndReason =
+  | 'logout'
+  | 'password_changed'
+  | 'signed_out'
+  | 'signed_out_by_admin'
+  | 'token_reuse'
+  | 'device_mismatch'
+  | 'deactivated'
+  | 'replaced'
+  | 'expired';
+
+export interface SessionEntry {
+  id: number;
+  deviceName: string;
+  ip: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  status: boolean;
+  endedAt: string | null;
+  endReason: SessionEndReason | null;
+  endedFromDevice: string | null;
+  endedFromIp: string | null;
+  current: boolean;
+  /** Signed in from a browser that holds a device key, so a copied token cannot be used */
+  protectedByDeviceKey: boolean;
+}
